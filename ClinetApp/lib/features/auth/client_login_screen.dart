@@ -267,19 +267,19 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              const Expanded(
+                              Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Customer & Client Portal',
-                                      style: TextStyle(
+                                      _isSignUp ? 'Customer Sign Up' : 'Customer Login',
+                                      style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.darkCharcoal,
                                       ),
                                     ),
-                                    Text(
+                                    const Text(
                                       'House Owners & Construction Clients',
                                       style: TextStyle(
                                         fontSize: 12,
