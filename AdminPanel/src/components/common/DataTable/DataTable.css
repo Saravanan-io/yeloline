@@ -1,0 +1,176 @@
+/* Unique CSS for DataTable component */
+.datatable-wrapper {
+  background: var(--light-card);
+  border: 1px solid var(--light-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.datatable-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--light-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.datatable-search {
+  position: relative;
+  flex: 1;
+  min-width: 240px;
+  max-width: 380px;
+}
+
+.datatable-search-icon {
+  position: absolute !important;
+  left: 14px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: var(--text-muted) !important;
+  pointer-events: none !important;
+  z-index: 5 !important;
+}
+
+div.datatable-search input[type="text"],
+.datatable-search-input,
+.datatable-search input {
+  width: 100% !important;
+  padding-left: 44px !important;
+  padding-right: 14px !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  background-color: var(--light-background);
+  border: 1px solid var(--light-border);
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.datatable-search-input:focus {
+  border-color: var(--primary-yellow);
+  box-shadow: 0 0 0 3px var(--primary-yellow-light);
+}
+
+.datatable-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.datatable-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.datatable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.88rem;
+}
+
+.datatable th {
+  background-color: rgba(250, 204, 21, 0.04);
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.76rem;
+  letter-spacing: 0.5px;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--light-border);
+  white-space: nowrap;
+}
+
+.datatable td {
+  padding: 0.95rem 1.25rem;
+  border-bottom: 1px solid var(--light-border);
+  color: var(--text-primary);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.datatable tr:last-child td {
+  border-bottom: none;
+}
+
+.datatable tr:hover td {
+  background-color: rgba(250, 204, 21, 0.03);
+}
+
+.datatable-empty {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.datatable-footer {
+  padding: 0.85rem 1.25rem;
+  border-top: 1px solid var(--light-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  background-color: var(--light-background);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.datatable-pagination {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.datatable-page-btn {
+  background: var(--light-card);
+  border: 1px solid var(--light-border);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.datatable-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.datatable-page-btn:not(:disabled):hover {
+  background-color: var(--primary-yellow-light);
+  border-color: var(--primary-yellow);
+}
+
+@media (max-width: 640px) {
+  .datatable-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .datatable-search {
+    max-width: 100%;
+    min-width: 100%;
+  }
+  .datatable-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .datatable th, .datatable td {
+    padding: 0.75rem 0.85rem;
+  }
+}

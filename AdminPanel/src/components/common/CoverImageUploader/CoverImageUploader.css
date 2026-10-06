@@ -1,0 +1,106 @@
+/* Unique CSS for CoverImageUploader component */
+.cover-uploader-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.cover-dropzone {
+  border: 2px dashed var(--light-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  text-align: center;
+  background-color: rgba(250, 204, 21, 0.02);
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.cover-dropzone:hover, .cover-dropzone.active {
+  border-color: var(--primary-yellow);
+  background-color: var(--primary-yellow-light);
+}
+
+.cover-dropzone-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background-color: var(--primary-yellow-light);
+  color: var(--accent-yellow-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cover-preview-card {
+  position: relative;
+  border: 1px solid var(--light-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  height: 160px;
+  width: 100%;
+  background-color: var(--slate-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cover-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-preview-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+}
+
+.cover-btn {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  border: 1px solid var(--slate-border);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.15s;
+}
+
+.cover-btn:hover {
+  background: var(--dark-charcoal);
+  color: var(--primary-yellow);
+}
+
+.cover-url-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cover-url-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--light-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--light-background);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.cover-url-input:focus {
+  border-color: var(--primary-yellow);
+}

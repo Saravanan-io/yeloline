@@ -1,0 +1,7 @@
+@import './styles/theme.css';
+
+/* App Container Baseline */
+.app-main-root {
+  min-height: 100vh;
+  width: 100%;
+}

@@ -1,0 +1,69 @@
+# ==========================================
+# YELOLINE Construction (Client) - .gitignore
+# ==========================================
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDEs & Code Editors
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+
+# Flutter & Dart Build Output / Cache
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+coverage/
+doc/api/
+.packages
+app.*.symbols
+app.*.map.json
+.widget_preview/
+
+# Android Build & Secrets
+android/.gradle/
+android/captures/
+android/local.properties
+android/key.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/app/build/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# iOS & macOS Build Artifacts
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets/
+ios/Runner.xcworkspace/
+ios/DerivedData/
+macos/Flutter/ephemeral/
+
+# Secrets & Environment Files
+.env
+.env.*
+!.env.example

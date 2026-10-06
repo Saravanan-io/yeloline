@@ -1,0 +1,53 @@
+/* Unique CSS for AdminLayout container */
+.admin-app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--light-background);
+}
+
+.admin-body-grid {
+  display: flex;
+  flex: 1;
+  position: relative;
+}
+
+.admin-main-content {
+  flex: 1;
+  padding: 2rem 2.25rem;
+  overflow-x: hidden;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.mobile-sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .mobile-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    top: 70px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 95;
+    animation: fadeIn 0.2s ease-out;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-main-content {
+    padding: 1.25rem 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-main-content {
+    padding: 1rem 0.75rem;
+  }
+}

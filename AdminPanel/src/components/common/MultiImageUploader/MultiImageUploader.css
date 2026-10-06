@@ -1,0 +1,164 @@
+/* Unique CSS for MultiImageUploader component */
+.image-uploader-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: relative;
+}
+
+.image-dropzone {
+  border: 2px dashed var(--light-border);
+  border-radius: var(--radius-md);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  background-color: rgba(250, 204, 21, 0.02);
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.image-dropzone:hover, .image-dropzone.active {
+  border-color: var(--primary-yellow);
+  background-color: var(--primary-yellow-light);
+}
+
+.image-dropzone-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--primary-yellow-light);
+  color: var(--accent-yellow-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.image-dropzone:hover .image-dropzone-icon, .image-dropzone.active .image-dropzone-icon {
+  transform: scale(1.1);
+}
+
+.image-dropzone-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.image-dropzone-sub {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.upload-success-toast {
+  background-color: var(--success-bg);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: var(--success-green);
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+.upload-success-toast-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toast-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--success-green);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+  border-radius: 4px;
+}
+
+.toast-close-btn:hover {
+  opacity: 1;
+  background-color: rgba(16, 185, 129, 0.15);
+}
+
+.image-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.image-card {
+  position: relative;
+  background: var(--light-card);
+  border: 1px solid var(--light-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.image-card-thumb {
+  height: 120px;
+  width: 100%;
+  object-fit: cover;
+  background-color: var(--slate-dark);
+}
+
+.image-card-controls {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background-color: var(--light-card);
+}
+
+.image-card-tag-select {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--light-border);
+  background-color: var(--light-background);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.image-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.image-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.image-action-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--light-background);
+}
+
+.image-action-btn.delete:hover {
+  color: var(--danger-red);
+  background-color: var(--danger-bg);
+}

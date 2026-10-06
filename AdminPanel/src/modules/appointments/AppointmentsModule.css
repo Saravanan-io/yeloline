@@ -1,0 +1,36 @@
+/* Unique CSS for Renovation Van Appointments Module */
+.appointments-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.van-banner {
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.12), rgba(234, 179, 8, 0.05));
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.van-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--accent-yellow-dark);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.service-tag {
+  background-color: var(--light-background);
+  border: 1px solid var(--light-border);
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}

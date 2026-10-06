@@ -1,0 +1,71 @@
+Flutter crash report.
+Please report a bug at https://github.com/flutter/flutter/issues.
+
+## command
+
+flutter run -d chrome
+
+## exception
+
+SocketException: SocketException: Error event raised in event handler : error condition has been reset, port = 0
+
+```
+#0      _NativeSocket.multiplex (dart:io-patch/socket_patch.dart:1735:30)
+#1      _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:192:12)
+```
+
+## flutter doctor
+
+```
+[✓] Flutter (Channel stable, 3.44.7, on Ubuntu 24.04.4 LTS 7.0.0-34-generic, locale en_US.UTF-8)
+    [108ms]
+    • Flutter version 3.44.7 on channel stable at /home/pepsoftware/development/flutter
+    • Upstream repository https://github.com/flutter/flutter.git
+    • Framework revision 84fc5cbb22 (3 months ago), 2026-07-17 10:20:17 -0700
+    • Engine revision 69c8c61792
+    • Dart version 3.12.2
+    • DevTools version 2.57.0
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop,
+      enable-android, enable-ios, cli-animations, enable-native-assets,
+      enable-swift-package-manager, omit-legacy-version-file, enable-lldb-debugging,
+      enable-uiscene-migration
+
+[!] Android toolchain - develop for Android devices (Android SDK version 36.0.0) [13.2s]
+    • Android SDK at /home/pepsoftware/development/android-sdk
+    • Emulator version unknown
+    • Platform android-36, build-tools 36.0.0
+    • Java binary at: /home/pepsoftware/development/jdk/jdk-17.0.13+11/bin/java
+      This JDK is specified in your Flutter configuration.
+      To change the current JDK, run: `flutter config --jdk-dir="path/to/jdk"`.
+    • Java version OpenJDK Runtime Environment Temurin-17.0.13+11 (build 17.0.13+11)
+    ✗ Android license status unknown.
+      Run `flutter doctor --android-licenses` to accept the SDK licenses.
+      See https://flutter.dev/to/linux-android-setup for more details.
+
+[✓] Chrome - develop for the web [78ms]
+    • Chrome at google-chrome
+
+[✗] Linux toolchain - develop for Linux desktop [301ms]
+    ✗ clang++ is required for Linux development.
+      It is likely available from your distribution (e.g.: apt install clang), or can be downloaded
+      from https://releases.llvm.org/
+    ✗ CMake is required for Linux development.
+      It is likely available from your distribution (e.g.: apt install cmake), or can be downloaded
+      from https://cmake.org/download/
+    ✗ ninja is required for Linux development.
+      It is likely available from your distribution (e.g.: apt install ninja-build), or can be
+      downloaded from https://github.com/ninja-build/ninja/releases
+    ✗ pkg-config is required for Linux development.
+      It is likely available from your distribution (e.g.: apt install pkg-config), or can be
+      downloaded from https://www.freedesktop.org/wiki/Software/pkg-config/
+
+[✓] Connected device (3 available) [577ms]
+    • V2339 (mobile)  • 10BE5K1U1X0006K • android-arm64  • Android 16 (API 36)
+    • Linux (desktop) • linux           • linux-x64      • Ubuntu 24.04.4 LTS 7.0.0-34-generic
+    • Chrome (web)    • chrome          • web-javascript • Google Chrome 151.0.7922.108
+
+[✓] Network resources [1,327ms]
+    • All expected network resources are available.
+
+! Doctor found issues in 2 categories.
+```

@@ -1,0 +1,225 @@
+/* Settings Module Styling - Yeloline Admin */
+
+.settings-module {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 40px;
+}
+
+/* Header Section */
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.settings-success-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Quick Overview Grid */
+.settings-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.settings-overview-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.settings-overview-card.green {
+  border-left: 4px solid #10b981;
+}
+
+.settings-overview-card.green .overview-card-icon {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.settings-overview-card.yellow {
+  border-left: 4px solid #f59e0b;
+}
+
+.settings-overview-card.yellow .overview-card-icon {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+.settings-overview-card.blue {
+  border-left: 4px solid #3b82f6;
+}
+
+.settings-overview-card.blue .overview-card-icon {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.overview-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.overview-card-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+}
+
+.overview-card-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary, #111827);
+  margin-top: 2px;
+}
+
+.overview-card-action {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #059669;
+  background: #d1fae5;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.overview-card-action:hover {
+  opacity: 0.85;
+}
+
+/* Settings Form Section */
+.settings-form-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settings-card-section {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.settings-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  color: var(--accent-yellow-dark, #d97706);
+}
+
+.settings-section-header h3 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary, #111827);
+  margin: 0;
+}
+
+.settings-section-header p {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #6b7280);
+  margin: 2px 0 0;
+}
+
+.settings-form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.settings-form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+@media (max-width: 768px) {
+  .settings-form-grid-2,
+  .settings-form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-left-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.input-left-icon.green {
+  color: #10b981;
+}
+
+.input-left-icon.yellow {
+  color: #f59e0b;
+}
+
+.form-input.icon-padded {
+  padding-left: 38px;
+}
+
+.field-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6b7280);
+  margin-top: 4px;
+}
+
+.settings-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+.btn-primary.large {
+  padding: 12px 28px;
+  font-size: 0.98rem;
+  font-weight: 700;
+}

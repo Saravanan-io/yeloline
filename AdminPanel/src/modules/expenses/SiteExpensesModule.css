@@ -1,0 +1,32 @@
+/* Unique CSS for Site Expense Tracker Module */
+.expenses-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.expense-summary-card {
+  background: linear-gradient(135deg, var(--dark-charcoal), var(--slate-dark));
+  border: 1px solid var(--slate-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.expense-total-label {
+  font-size: 0.85rem;
+  color: #94A3B8;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.expense-total-amount {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: var(--primary-yellow);
+}

@@ -1,0 +1,12 @@
+/* Unique CSS for Material Purchase Orders Module */
+.purchases-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.po-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
