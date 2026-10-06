@@ -5,46 +5,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/auth_service.dart';
 import '../admin_main_layout.dart';
 
-const List<String> kTamilNaduDistricts = [
-  'Ariyalur',
-  'Chengalpattu',
-  'Chennai',
-  'Coimbatore',
-  'Cuddalore',
-  'Dharmapuri',
-  'Dindigul',
-  'Erode',
-  'Kallakurichi',
-  'Kancheepuram',
-  'Karur',
-  'Krishnagiri',
-  'Madurai',
-  'Mayiladuthurai',
-  'Nagapattinam',
-  'Kanniyakumari',
-  'Namakkal',
-  'Perambalur',
-  'Pudukottai',
-  'Ramanathapuram',
-  'Ranipet',
-  'Salem',
-  'Sivaganga',
-  'Tenkasi',
-  'Thanjavur',
-  'Theni',
-  'Thoothukudi',
-  'Tiruchirappalli',
-  'Tirunelveli',
-  'Tirupathur',
-  'Tiruppur',
-  'Tiruvallur',
-  'Tiruvannamalai',
-  'Tiruvarur',
-  'Vellore',
-  'Viluppuram',
-  'Virudhunagar',
-  'The Nilgiris',
-];
 
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
@@ -55,12 +15,9 @@ class AdminLoginScreen extends StatefulWidget {
 
 class _AdminLoginScreenState extends State<AdminLoginScreen> {
   // ADMIN FORM STATE
-  bool _adminIsSignUp = false;
   final _adminFormKey = GlobalKey<FormState>();
-  final _adminNameController = TextEditingController();
   final _adminMobileController = TextEditingController();
   final _adminOtpController = TextEditingController();
-  String? _adminSelectedDistrict;
   bool _adminIsOtpSent = false;
   int _adminOtpTimer = 30;
   Timer? _adminTimerObj;
@@ -69,7 +26,6 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 
   @override
   void dispose() {
-    _adminNameController.dispose();
     _adminMobileController.dispose();
     _adminOtpController.dispose();
     _adminTimerObj?.cancel();
@@ -138,13 +94,6 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       return;
     }
 
-    if (_adminIsSignUp && (_adminSelectedDistrict == null || _adminSelectedDistrict!.isEmpty)) {
-      setState(() {
-        _adminError = 'Please select your Tamil Nadu location district.';
-      });
-      return;
-    }
-
     if (!_adminIsOtpSent) {
       _sendAdminOtp();
       return;
@@ -183,20 +132,6 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     });
   }
 
-  // DISTRICT SEARCHABLE BOTTOM SHEET
-  void _openDistrictPicker(String? currentSelected, Function(String) onSelect) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return _DistrictPickerSheet(
-          currentSelected: currentSelected,
-          onSelect: onSelect,
-        );
-      },
-    );
-  }
 
   // EXIT CONFIRMATION DIALOG
   Future<bool> _showExitConfirmationDialog(BuildContext context) async {
@@ -419,70 +354,6 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Sign In / Sign Up Mode Switcher
-            Container(
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _adminIsSignUp = false;
-                          _adminError = null;
-                        });
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: !_adminIsSignUp ? AppColors.darkCharcoal : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Sign In',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: !_adminIsSignUp ? AppColors.primaryYellow : AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _adminIsSignUp = true;
-                          _adminError = null;
-                        });
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: _adminIsSignUp ? AppColors.darkCharcoal : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Sign Up',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _adminIsSignUp ? AppColors.primaryYellow : AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
             // Error Banner
             if (_adminError != null) ...[
               Container(
@@ -508,26 +379,6 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               const SizedBox(height: 14),
             ],
 
-            // FIELD: Name (Sign Up only)
-            if (_adminIsSignUp) ...[
-              _buildInputLabel('Full Name *'),
-              TextFormField(
-                controller: _adminNameController,
-                textCapitalization: TextCapitalization.words,
-                decoration: _buildInputDecoration(
-                  hintText: 'Enter admin full name',
-                  prefixIcon: Icons.person_outline_rounded,
-                ),
-                validator: (val) {
-                  if (_adminIsSignUp && (val == null || val.trim().isEmpty)) {
-                    return 'Please enter name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 14),
-            ],
-
             // FIELD: Mobile Number
             _buildInputLabel('Mobile Number *'),
             TextFormField(
@@ -549,57 +400,6 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               },
             ),
             const SizedBox(height: 14),
-
-            // FIELD: Location District (Sign Up only)
-            if (_adminIsSignUp) ...[
-              _buildInputLabel('Location (Tamil Nadu District) *'),
-              InkWell(
-                onTap: () {
-                  _openDistrictPicker(_adminSelectedDistrict, (selected) {
-                    setState(() {
-                      _adminSelectedDistrict = selected;
-                    });
-                  });
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFCBD5E1)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.location_on_outlined, color: AppColors.darkCharcoal, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _adminSelectedDistrict ?? 'Select Tamil Nadu District',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: _adminSelectedDistrict != null ? AppColors.textPrimary : Colors.black38,
-                            fontWeight: _adminSelectedDistrict != null ? FontWeight.w600 : FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                      if (_adminSelectedDistrict != null)
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _adminSelectedDistrict = null;
-                            });
-                          },
-                          child: const Icon(Icons.cancel_rounded, color: Colors.black45, size: 18),
-                        )
-                      else
-                        const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.black45, size: 22),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-            ],
 
             // FIELD: OTP Code (when OTP sent)
             if (_adminIsOtpSent) ...[
@@ -662,9 +462,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                           Icon(_adminIsOtpSent ? Icons.verified_user_rounded : Icons.sms_rounded, size: 18),
                           const SizedBox(width: 8),
                           Text(
-                            _adminIsOtpSent
-                                ? (_adminIsSignUp ? 'Verify OTP & Register Admin' : 'Verify OTP & Login')
-                                : (_adminIsSignUp ? 'Send OTP & Register' : 'Send OTP & Login'),
+                            _adminIsOtpSent ? 'Verify OTP & Login' : 'Send OTP & Login',
                             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                           ),
                         ],
@@ -719,183 +517,3 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   }
 }
 
-// ==========================================
-// SEARCHABLE DISTRICT PICKER BOTTOM SHEET
-// ==========================================
-class _DistrictPickerSheet extends StatefulWidget {
-  final String? currentSelected;
-  final Function(String) onSelect;
-
-  const _DistrictPickerSheet({
-    required this.currentSelected,
-    required this.onSelect,
-  });
-
-  @override
-  State<_DistrictPickerSheet> createState() => _DistrictPickerSheetState();
-}
-
-class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
-  final _searchController = TextEditingController();
-  List<String> _filteredDistricts = kTamilNaduDistricts;
-
-  @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(_onSearchChanged);
-  }
-
-  @override
-  void dispose() {
-    _searchController.removeListener(_onSearchChanged);
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _onSearchChanged() {
-    final query = _searchController.text.trim().toLowerCase();
-    setState(() {
-      if (query.isEmpty) {
-        _filteredDistricts = kTamilNaduDistricts;
-      } else {
-        _filteredDistricts = kTamilNaduDistricts
-            .where((district) => district.toLowerCase().contains(query))
-            .toList();
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
-          // Drag Handle & Header
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4.5,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Select Location',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
-                    ),
-                    Text(
-                      '38 Districts of Tamil Nadu',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded, color: AppColors.darkCharcoal),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 20),
-
-          // Search Box
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: TextField(
-              controller: _searchController,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'Search district (e.g. Chennai, Erode, Madurai)...',
-                hintStyle: const TextStyle(fontSize: 13, color: Colors.black38),
-                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.darkCharcoal),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: const Color(0xFFF1F5F9),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Districts List
-          Expanded(
-            child: _filteredDistricts.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.location_off_outlined, size: 48, color: Colors.grey.shade400),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'No Tamil Nadu district found',
-                          style: TextStyle(fontSize: 14, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    itemCount: _filteredDistricts.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1, indent: 44),
-                    itemBuilder: (context, index) {
-                      final district = _filteredDistricts[index];
-                      final isSelected = widget.currentSelected == district;
-
-                      return ListTile(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        tileColor: isSelected ? AppColors.primaryYellow.withValues(alpha: 0.15) : null,
-                        leading: Icon(
-                          Icons.location_on_rounded,
-                          color: isSelected ? AppColors.darkYellow : AppColors.darkCharcoal.withValues(alpha: 0.6),
-                          size: 20,
-                        ),
-                        title: Text(
-                          district,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                            color: isSelected ? AppColors.darkCharcoal : AppColors.textPrimary,
-                          ),
-                        ),
-                        trailing: isSelected
-                            ? const Icon(Icons.check_circle_rounded, color: AppColors.darkYellow, size: 20)
-                            : null,
-                        onTap: () {
-                          widget.onSelect(district);
-                          Navigator.pop(context);
-                        },
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}

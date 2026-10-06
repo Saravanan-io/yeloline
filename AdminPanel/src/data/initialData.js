@@ -146,5 +146,33 @@ export const initialCompanySettings = {
   instagram_url: "https://instagram.com/yeloline_constructions",
   facebook_url: "https://facebook.com/yelolineconstructions"
 };
+export const PAYMENT_BREAKUP_COLUMNS_SPEC = [
+  { key: "sno", label: "S.NO", type: "Number", required: true, example: 1 },
+  { key: "stage_name", label: "DESCRIPTION OF WORK", type: "String", required: true, example: "MOBILIZATION ADVANCE (16%)" },
+  { key: "amount", label: "AMOUNT", type: "Number", required: false, example: "" },
+  { key: "work_schedule", label: "WORK SCHEDULE", type: "String", required: false, example: "" }
+];
 
+export const DEFAULT_PAYMENT_BREAKUP_STAGES = [
+  { sno: 1, stage_name: "MOBILIZATION ADVANCE (16%)", amount: "", work_schedule: "" },
+  { sno: 2, stage_name: "ON COMPLETION OF BASEMENT", amount: "", work_schedule: "" },
+  { sno: 3, stage_name: "ON COMPLETION OF 7' LINTEL LEVEL RCC WORK", amount: "", work_schedule: "" },
+  { sno: 4, stage_name: "ON COMPLETION OF GROUND FLOOR ROOF CONCRETE", amount: "", work_schedule: "" },
+  { sno: 5, stage_name: "ON COMPLETION OF MEP CONCEALED WORK", amount: "", work_schedule: "" },
+  { sno: 6, stage_name: "ON COMPLETION OF WALL PLASTERING", amount: "", work_schedule: "" },
+  { sno: 7, stage_name: "ON COMPLETION OF TILE LAYING", amount: "", work_schedule: "" },
+  { sno: 8, stage_name: "ON COMPLETION OF UPVC WINDOW & DOOR FIXING", amount: "", work_schedule: "" },
+  { sno: 9, stage_name: "ON COMPLETION OF INTERIOR WALL PAINTING", amount: "", work_schedule: "" },
+  { sno: 10, stage_name: "ON COMPLETION OF ALL FINISHING WORKS", amount: "", work_schedule: "" }
+];export const DEFAULT_MONTHLY_BILLING_AREAS = [
+  { sno: 1, description: "தரைத்தளம் (Ground Floor)", area_sqft: 1444, rate_per_sqft: 2225, amount: 3212900 },
+  { sno: 2, description: "படிக்கட்டு ஏரியா (Staircase Area)", area_sqft: 74, rate_per_sqft: 1900, amount: 140600 },
+  { sno: 3, description: "போர்டிகோ / பால்கனி ஏரியா (Portico / Balcony)", area_sqft: 204, rate_per_sqft: 1800, amount: 367200 },
+  { sno: 4, description: "ஹெட்ரூம் ஏரியா (Headroom Extended)", area_sqft: 280, rate_per_sqft: 1800, amount: 504000 }
+];
 
+export const DEFAULT_MONTHLY_BILLING_AMENITIES = [
+  { sno: 5, description: "நிலத்தொட்டி (5000 லிட்டர் / Sump Tank)", amount: 75000 },
+  { sno: 6, description: "செப்டிக் டேங்க் (3000 லிட்டர் / Septic Tank)", amount: 45000 },
+  { sno: 7, description: "Sintex tank (1500 லிட்டர் / Overhead Tank)", amount: 15000 }
+];

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Plus,
   Receipt,
@@ -11,8 +11,7 @@ import {
   Edit3,
   Clock,
   Printer,
-  Eye,
-  Tag
+  Eye
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import DataTable from '../../components/common/DataTable/DataTable';
@@ -40,12 +39,14 @@ const BILL_STATUSES = [
 ];
 
 const ADDITIONAL_BILLING_COLUMNS_SPEC = [
-  { key: "bill_id", label: "Bill ID", type: "String", required: true, example: "ADD-BILL-101" },
+  { key: "sno", label: "S.No.", type: "Number", required: true, example: 1 },
+  { key: "work_description", label: "Description", type: "String", required: true, example: "Extra 2nd floor balcony extension & RCC beam reinforcement" },
+  { key: "quoted_amount", label: "Quoted Amount", type: "Number", required: true, example: 150000 },
+  { key: "expense_amount", label: "Expense Amount", type: "Number", required: true, example: 125000 },
+  { key: "amount", label: "Amount in Rs.", type: "Number", required: true, example: 150000 },
   { key: "site_name", label: "Site Name", type: "String", required: true, example: "Modern Minimalist Villa - Perundurai" },
-  { key: "client_name", label: "Client Name", type: "String", required: true, example: "Ramesh Sundaram" },
+  { key: "client_name", label: "Client Name", type: "String", required: false, example: "Ramesh Sundaram" },
   { key: "category", label: "Work Category", type: "String", required: true, example: "Structural Variation" },
-  { key: "work_description", label: "Work Description", type: "String", required: true, example: "Extra 2nd floor balcony extension & RCC beam reinforcement" },
-  { key: "amount", label: "Amount (₹)", type: "Number", required: true, example: "125000" },
   { key: "bill_date", label: "Billing Date", type: "Date", required: true, example: "2026-10-06" },
   { key: "status", label: "Status", type: "String", required: true, example: "Approved" }
 ];
@@ -77,7 +78,9 @@ export default function AdditionalBillingModule() {
     client_name: '',
     category: WORK_CATEGORIES[0],
     work_description: '',
-    amount: '',
+    quoted_amount: '',
+    expense_amount: '',
+    amount: '', // Amount in Rs.
     bill_date: new Date().toISOString().split('T')[0],
     status: 'Pending Approval',
     notes: ''
@@ -90,6 +93,8 @@ export default function AdditionalBillingModule() {
       client_name: '',
       category: WORK_CATEGORIES[0],
       work_description: '',
+      quoted_amount: '',
+      expense_amount: '',
       amount: '',
       bill_date: new Date().toISOString().split('T')[0],
       status: 'Pending Approval',
@@ -105,7 +110,9 @@ export default function AdditionalBillingModule() {
       client_name: bill.client_name || '',
       category: bill.category || WORK_CATEGORIES[0],
       work_description: bill.work_description || '',
-      amount: bill.amount || '',
+      quoted_amount: bill.quoted_amount ?? bill.amount ?? '',
+      expense_amount: bill.expense_amount ?? '',
+      amount: bill.amount ?? bill.quoted_amount ?? '',
       bill_date: bill.bill_date || new Date().toISOString().split('T')[0],
       status: bill.status || 'Pending Approval',
       notes: bill.notes || ''
@@ -115,14 +122,20 @@ export default function AdditionalBillingModule() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.work_description || !formData.amount) {
-      alert('Please fill in work description and amount');
+    if (!formData.work_description) {
+      alert('Please fill in the description of the additional work');
       return;
     }
 
+    const quoted = Number(formData.quoted_amount) || 0;
+    const expense = Number(formData.expense_amount) || 0;
+    const finalAmt = Number(formData.amount) || quoted || 0;
+
     const payload = {
       ...formData,
-      amount: Number(formData.amount) || 0
+      quoted_amount: quoted,
+      expense_amount: expense,
+      amount: finalAmt
     };
 
     if (editingBill) {
@@ -148,59 +161,81 @@ export default function AdditionalBillingModule() {
     return matchesSite && matchesCategory && matchesStatus;
   });
 
-  const totalBilledValue = filteredBillings.reduce((acc, b) => acc + Number(b.amount || 0), 0);
+  const enrichedBillings = useMemo(() => {
+    return filteredBillings.map((b, idx) => ({
+      ...b,
+      sno: idx + 1
+    }));
+  }, [filteredBillings]);
+
+  const totalQuotedValue = filteredBillings.reduce((acc, b) => acc + Number(b.quoted_amount ?? b.amount ?? 0), 0);
+  const totalExpenseValue = filteredBillings.reduce((acc, b) => acc + Number(b.expense_amount ?? 0), 0);
+  const totalBilledValue = filteredBillings.reduce((acc, b) => acc + Number(b.amount ?? b.quoted_amount ?? 0), 0);
   const totalPaidValue = filteredBillings
     .filter(b => b.status === 'Paid')
-    .reduce((acc, b) => acc + Number(b.amount || 0), 0);
-  const pendingApprovalsCount = filteredBillings.filter(b => b.status === 'Pending Approval' || b.status === 'Billed').length;
+    .reduce((acc, b) => acc + Number(b.amount ?? b.quoted_amount ?? 0), 0);
 
+  // Table Columns matching Image 1: S.No., Description, Quoted Amount, Expense Amount, Amount in Rs.
   const tableColumns = [
     {
-      header: "Bill ID",
-      key: "bill_id",
-      render: (r) => <strong style={{ color: 'var(--accent-yellow-dark)', whiteSpace: 'nowrap' }}>{r.bill_id || r.id}</strong>
+      header: "S.No.",
+      key: "sno",
+      width: "70px",
+      render: (r, index) => <span className="sno-badge">{r.sno || index + 1}</span>
     },
     {
-      header: "Site / Client",
-      key: "site_name",
+      header: "Description",
+      key: "work_description",
       render: (r) => (
         <div>
-          <div style={{ fontWeight: '700', fontSize: '0.88rem' }}>{r.site_name || 'General Site'}</div>
-          {r.client_name && <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Client: {r.client_name}</div>}
+          <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+            {r.work_description}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ color: 'var(--accent-yellow-dark)', fontWeight: '700' }}>{r.bill_id || r.id}</span>
+            <span>•</span>
+            <span>{r.site_name || 'General Site'}{r.client_name ? ` (${r.client_name})` : ''}</span>
+            {r.category && (
+              <>
+                <span>•</span>
+                <span className="category-pill" style={{ padding: '2px 8px', fontSize: '0.72rem' }}>{r.category}</span>
+              </>
+            )}
+          </div>
         </div>
       )
     },
     {
-      header: "Category",
-      key: "category",
+      header: "Quoted Amount",
+      key: "quoted_amount",
       render: (r) => (
-        <span className="category-pill">
-          <Tag size={12} /> {r.category}
+        <span style={{ fontWeight: '600', color: '#2563EB', whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: '0.92rem' }}>
+          ₹{Number(r.quoted_amount ?? r.amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       )
     },
     {
-      header: "Scope Description",
-      key: "work_description",
+      header: "Expense Amount",
+      key: "expense_amount",
       render: (r) => (
-        <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-          {r.work_description}
+        <span style={{ fontWeight: '600', color: '#DC2626', whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: '0.92rem' }}>
+          ₹{Number(r.expense_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       )
     },
     {
-      header: "Amount (₹)",
+      header: "Amount in Rs.",
       key: "amount",
       render: (r) => (
-        <strong style={{ fontSize: '0.94rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-          ₹{Number(r.amount).toLocaleString('en-IN')}
+        <strong style={{ fontSize: '0.96rem', color: '#0F172A', whiteSpace: 'nowrap', fontWeight: '800', fontFamily: 'monospace' }}>
+          ₹{Number(r.amount ?? r.quoted_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </strong>
       )
     },
     {
       header: "Date",
       key: "bill_date",
-      render: (r) => <span style={{ whiteSpace: 'nowrap' }}>{r.bill_date}</span>
+      render: (r) => <span style={{ whiteSpace: 'nowrap', fontSize: '0.84rem' }}>{r.bill_date}</span>
     },
     {
       header: "Status",
@@ -215,7 +250,7 @@ export default function AdditionalBillingModule() {
           <button
             className="action-icon-btn info"
             onClick={(e) => { e.stopPropagation(); setPreviewBill(r); }}
-            title="View Invoice Preview"
+            title="View Voucher"
           >
             <Eye size={14} />
           </button>
@@ -245,19 +280,39 @@ export default function AdditionalBillingModule() {
         <div>
           <h1 className="additional-billing-title">Additional Billing & Extra Work Invoices</h1>
           <p className="additional-billing-subtitle">
-            Manage extra scope variations, site modifications, client upgrades, and additional billing invoices
+            Manage extra scope variations, site modifications, client upgrades, and additional work expenses
           </p>
         </div>
         <div className="header-action-group">
           <button
             className="btn-secondary"
-            onClick={() => exportToXLS(filteredBillings, 'Yeloline_Additional_Billing', 'Additional Billing Records', ADDITIONAL_BILLING_COLUMNS_SPEC)}
+            onClick={() => {
+              const exportRows = enrichedBillings.map(b => ({
+                ...b,
+                quoted_amount: Number(b.quoted_amount ?? b.amount ?? 0),
+                expense_amount: Number(b.expense_amount ?? 0),
+                amount: Number(b.amount ?? b.quoted_amount ?? 0)
+              }));
+              exportToXLS(exportRows, 'Yeloline_Additional_Work_Expenses', 'Additional work Expenses', ADDITIONAL_BILLING_COLUMNS_SPEC);
+            }}
           >
             <FileSpreadsheet size={16} /> Export XLS
           </button>
           <button
             className="btn-secondary"
-            onClick={() => exportToPDF(filteredBillings, 'Yeloline_Additional_Billing', 'Additional Billing Records', ADDITIONAL_BILLING_COLUMNS_SPEC)}
+            onClick={() => {
+              const exportRows = enrichedBillings.map(b => ({
+                sno: b.sno,
+                work_description: b.work_description,
+                quoted_amount: `₹${Number(b.quoted_amount ?? b.amount ?? 0).toLocaleString('en-IN')}`,
+                expense_amount: `₹${Number(b.expense_amount ?? 0).toLocaleString('en-IN')}`,
+                amount: `₹${Number(b.amount ?? b.quoted_amount ?? 0).toLocaleString('en-IN')}`,
+                site_name: b.site_name,
+                bill_date: b.bill_date,
+                status: b.status
+              }));
+              exportToPDF(exportRows, 'Yeloline_Additional_Work_Expenses', 'Additional work Expenses', ADDITIONAL_BILLING_COLUMNS_SPEC);
+            }}
           >
             <FileText size={16} /> Export PDF
           </button>
@@ -277,22 +332,22 @@ export default function AdditionalBillingModule() {
           highlight
         />
         <MetricCard
-          title="Total Billed Amount"
-          value={`₹${(totalBilledValue / 100000).toFixed(2)}L`}
+          title="Total Quoted Amount"
+          value={`₹${(totalQuotedValue / 100000).toFixed(2)}L`}
           icon={DollarSign}
-          subtext="Cumulative extra work cost"
+          subtext={`₹${Number(totalQuotedValue).toLocaleString('en-IN')} client quote`}
         />
         <MetricCard
-          title="Approved & Paid"
-          value={`₹${(totalPaidValue / 100000).toFixed(2)}L`}
-          icon={CheckCircle}
-          subtext="Collected from clients"
-        />
-        <MetricCard
-          title="Pending Approvals / Bills"
-          value={pendingApprovalsCount}
+          title="Total Expense Amount"
+          value={`₹${(totalExpenseValue / 100000).toFixed(2)}L`}
           icon={Clock}
-          subtext="Awaiting client sign-off / payment"
+          subtext={`₹${Number(totalExpenseValue).toLocaleString('en-IN')} incurred cost`}
+        />
+        <MetricCard
+          title="Total Billed (Amount in Rs.)"
+          value={`₹${(totalBilledValue / 100000).toFixed(2)}L`}
+          icon={CheckCircle}
+          subtext={`₹${(totalPaidValue / 100000).toFixed(2)}L collected from clients`}
         />
       </div>
 
@@ -341,10 +396,18 @@ export default function AdditionalBillingModule() {
         </div>
       </div>
 
-      {/* Main Table */}
+      {/* Additional Work Expenses Header Banner (Matching Image 1) */}
+      <div className="additional-work-header-banner">
+        <div className="banner-title-wrap">
+          <span className="banner-highlight-text">Additional work Expenses</span>
+          <span className="banner-subtext">Itemized billing & expense tracking for extra client scope</span>
+        </div>
+      </div>
+
+      {/* Main Table with S.No., Description, Quoted Amount, Expense Amount, Amount in Rs. */}
       <DataTable
         columns={tableColumns}
-        data={filteredBillings}
+        data={enrichedBillings}
         pageSize={10}
         onRowClick={(row) => setPreviewBill(row)}
       />
@@ -355,6 +418,7 @@ export default function AdditionalBillingModule() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           title={editingBill ? `Edit Additional Bill - ${editingBill.bill_id}` : "Create New Additional Bill"}
+          maxWidth="720px"
         >
           <form onSubmit={handleSubmit} className="modal-form">
             <div className="form-group">
@@ -411,22 +475,62 @@ export default function AdditionalBillingModule() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Scope Description / Extra Work Details</label>
+              <label className="form-label">
+                Description <span style={{ color: '#EF4444' }}>*</span>
+              </label>
               <textarea
                 className="form-control"
                 rows="3"
-                placeholder="Detail the extra work or material upgrade requested by client..."
+                placeholder="Enter description of additional work or extra scope..."
                 value={formData.work_description}
                 onChange={(e) => setFormData({ ...formData, work_description: e.target.value })}
                 required
               />
             </div>
 
+            {/* The 3 Core Financial Fields from Image 1 */}
             <div className="form-row-3col">
               <div className="form-group">
-                <label className="form-label">Amount (₹)</label>
+                <label className="form-label">
+                  Quoted Amount (₹) <span style={{ color: '#EF4444' }}>*</span>
+                </label>
                 <input
                   type="number"
+                  step="any"
+                  className="form-control"
+                  placeholder="e.g. 85000"
+                  value={formData.quoted_amount}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      quoted_amount: val,
+                      amount: prev.amount === '' || prev.amount === prev.quoted_amount ? val : prev.amount
+                    }));
+                  }}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Expense Amount (₹)</label>
+                <input
+                  type="number"
+                  step="any"
+                  className="form-control"
+                  placeholder="e.g. 55000"
+                  value={formData.expense_amount}
+                  onChange={(e) => setFormData({ ...formData, expense_amount: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  Amount in Rs. (₹) <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input
+                  type="number"
+                  step="any"
                   className="form-control"
                   placeholder="e.g. 85000"
                   value={formData.amount}
@@ -434,7 +538,9 @@ export default function AdditionalBillingModule() {
                   required
                 />
               </div>
+            </div>
 
+            <div className="form-row-2col">
               <div className="form-group">
                 <label className="form-label">Billing Date</label>
                 <input
@@ -484,12 +590,13 @@ export default function AdditionalBillingModule() {
         </Modal>
       )}
 
-      {/* Invoice Preview Modal */}
+      {/* Invoice Preview Modal (Displays Official Table from Image 1) */}
       {previewBill && (
         <Modal
           isOpen={!!previewBill}
           onClose={() => setPreviewBill(null)}
-          title={`Additional Invoice Statement - ${previewBill.bill_id || previewBill.id}`}
+          title={`Additional work Expenses - ${previewBill.bill_id || previewBill.id}`}
+          maxWidth="780px"
         >
           <div className="invoice-preview-card">
             <div className="invoice-preview-header">
@@ -515,18 +622,57 @@ export default function AdditionalBillingModule() {
               </div>
             </div>
 
-            <div className="invoice-body">
-              <div className="body-label">Work Category:</div>
-              <div className="body-val">{previewBill.category}</div>
-              
-              <div className="body-label" style={{ marginTop: '10px' }}>Extra Work Scope Details:</div>
-              <div className="body-desc">{previewBill.work_description}</div>
+            {/* Official Table Matching Image 1 */}
+            <div className="official-voucher-table-wrapper">
+              <div className="official-voucher-heading">Additional work Expenses</div>
+              <table className="official-expenses-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '8%', textAlign: 'center' }}>S.No.</th>
+                    <th style={{ width: '42%' }}>Description</th>
+                    <th style={{ width: '16%', textAlign: 'right' }}>Quoted Amount</th>
+                    <th style={{ width: '17%', textAlign: 'right' }}>Expense Amount</th>
+                    <th style={{ width: '17%', textAlign: 'right' }}>Amount in Rs.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style={{ textAlign: 'center' }}>1</td>
+                    <td style={{ fontWeight: 600 }}>{previewBill.work_description}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                      ₹{Number(previewBill.quoted_amount ?? previewBill.amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                      ₹{Number(previewBill.expense_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                      ₹{Number(previewBill.amount ?? previewBill.quoted_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td></td>
+                    <td style={{ fontWeight: 800 }}>TOTAL</td>
+                    <td style={{ textAlign: 'right' }}>
+                      ₹{Number(previewBill.quoted_amount ?? previewBill.amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      ₹{Number(previewBill.expense_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      ₹{Number(previewBill.amount ?? previewBill.quoted_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
 
-            <div className="invoice-total-banner">
-              <span>Total Extra Work Amount:</span>
-              <span className="total-amount">₹{Number(previewBill.amount).toLocaleString('en-IN')}</span>
-            </div>
+            {previewBill.notes && (
+              <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: '1rem', background: '#F8FAFC', padding: '8px 12px', borderRadius: '4px' }}>
+                <strong>Notes / Reference:</strong> {previewBill.notes}
+              </div>
+            )}
 
             <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
               <button className="btn-secondary" onClick={() => window.print()}>

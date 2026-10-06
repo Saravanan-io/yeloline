@@ -10,7 +10,9 @@ import {
   Building,
   FileText,
   MessageSquare,
-  Settings
+  Settings,
+  Calculator,
+  CalendarDays
 } from 'lucide-react';
 import { useApp } from '../../../context/AppContext';
 import './Sidebar.css';
@@ -73,6 +75,11 @@ export default function Sidebar() {
       label: 'Materials Master',
       icon: FileText,
       isMasterGroup: 'Materials'
+    },
+    {
+      id: 'monthly_billing',
+      label: 'Monthly Billing',
+      icon: CalendarDays
     }
   ];
 
@@ -86,6 +93,11 @@ export default function Sidebar() {
       id: 'additional_billing',
       label: 'Additional Billing',
       icon: Receipt
+    },
+    {
+      id: 'payment_breakup',
+      label: 'Payment Breakup',
+      icon: Calculator
     },
     {
       id: 'site_expenses',

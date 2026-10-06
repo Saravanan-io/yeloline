@@ -28,7 +28,9 @@ export const COLLECTIONS = {
   USERS: 'users',
   DROPDOWN_MASTERS: 'dropdown_masters',
   SETTINGS: 'settings',
-  ADDITIONAL_BILLING: 'additional_billing'
+  ADDITIONAL_BILLING: 'additional_billing',
+  PAYMENT_BREAKUPS: 'payment_breakups',
+  MONTHLY_BILLINGS: 'monthly_billings'
 };
 
 /**

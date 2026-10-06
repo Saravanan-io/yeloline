@@ -242,3 +242,98 @@
   font-weight: 900;
   color: var(--accent-yellow-dark);
 }
+
+/* Additional Work Expenses Header Banner & Official Table Styles */
+.additional-work-header-banner {
+  background: #FFFFFF;
+  border: 1px solid var(--light-border);
+  border-bottom: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  padding: 0.9rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+}
+
+.banner-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.banner-highlight-text {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.3px;
+  background: #F1F5F9;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid #CBD5E1;
+}
+
+.banner-subtext {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.sno-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  color: #1E293B;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+/* Official Document & Voucher Table (Image 1 Style) */
+.official-voucher-table-wrapper {
+  margin-top: 1rem;
+  margin-bottom: 1.25rem;
+  border: 2px solid #000000;
+  background: #FFFFFF;
+}
+
+.official-voucher-heading {
+  text-align: center;
+  font-weight: 800;
+  font-size: 1rem;
+  padding: 8px 12px;
+  background: #FFFFFF;
+  border-bottom: 2px solid #000000;
+  color: #000000;
+  letter-spacing: 0.3px;
+}
+
+.official-expenses-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.official-expenses-table th {
+  border: 1px solid #000000;
+  padding: 8px 10px;
+  font-weight: 800;
+  color: #000000;
+  background: #F8FAFC;
+}
+
+.official-expenses-table td {
+  border: 1px solid #000000;
+  padding: 8px 10px;
+  color: #000000;
+}
+
+.official-expenses-table tfoot td {
+  font-weight: 800;
+  border-top: 2px solid #000000;
+  background: #FAFAFA;
+}

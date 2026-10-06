@@ -8,6 +8,8 @@ import '../../widgets/cards/quick_action_card.dart';
 import '../../widgets/cards/stat_card.dart';
 import '../../widgets/icons/whatsapp_icon.dart';
 import '../../widgets/common/app_image.dart';
+import '../../core/utils/auth_service.dart';
+import '../client_portal/client_portal_main_layout.dart';
 
 class HomeScreen extends StatelessWidget {
   final Function(int index, [String? category]) onNavigateTab;
@@ -69,6 +71,8 @@ class HomeScreen extends StatelessWidget {
                               ],
                             ),
                             const SizedBox(height: 16),
+                            _buildClientPortalBanner(context),
+                            const SizedBox(height: 12),
                             _buildQuickNavigationGrid(context),
                           ],
                         ),
@@ -272,6 +276,123 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildClientPortalBanner(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primaryYellow.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () async {
+            final savedSite = await AuthService.getClientPortalSite();
+            if (context.mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ClientPortalMainLayout(
+                    initialSiteName: savedSite ?? 'My Project',
+                  ),
+                ),
+              );
+            }
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryYellow,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.business_rounded,
+                    color: AppColors.darkCharcoal,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Row(
+                        children: [
+                          Text(
+                            'Client Project Portal',
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Icon(Icons.verified_rounded, size: 14, color: AppColors.primaryYellow),
+                        ],
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Live site tracking, monthly bills & payment breakups',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white70,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Row(
+                    children: [
+                      Text(
+                        'Enter',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryYellow,
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppColors.primaryYellow),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -15,7 +15,11 @@ import {
   initialContactEnquiries,
   initialSites,
   SITE_COLUMNS_SPEC,
-  initialCompanySettings
+  initialCompanySettings,
+  DEFAULT_PAYMENT_BREAKUP_STAGES,
+  PAYMENT_BREAKUP_COLUMNS_SPEC,
+  DEFAULT_MONTHLY_BILLING_AREAS,
+  DEFAULT_MONTHLY_BILLING_AMENITIES
 } from '../data/initialData';
 import {
   COLLECTIONS,
@@ -110,6 +114,8 @@ export const AppProvider = ({ children }) => {
   const [appointments, setAppointments] = useState([]);
   const [sites, setSites] = useState([]);
   const [additionalBillings, setAdditionalBillings] = useState([]);
+  const [paymentBreakups, setPaymentBreakups] = useState([]);
+  const [monthlyBillings, setMonthlyBillings] = useState([]);
   const [contactEnquiries, setContactEnquiries] = useState([]);
   const [users, setUsers] = useState([]);
   const [dropdownMasters, setDropdownMasters] = useState(initialDropdownMasters);
@@ -202,6 +208,14 @@ export const AppProvider = ({ children }) => {
       if (isMounted && Array.isArray(data)) setAdditionalBillings(data);
     });
 
+    const unsubPaymentBreakups = subscribeToCollection(COLLECTIONS.PAYMENT_BREAKUPS, (data) => {
+      if (isMounted && Array.isArray(data)) setPaymentBreakups(data);
+    });
+
+    const unsubMonthlyBillings = subscribeToCollection(COLLECTIONS.MONTHLY_BILLINGS, (data) => {
+      if (isMounted && Array.isArray(data)) setMonthlyBillings(data);
+    });
+
     const unsubAppointments = subscribeToCollection(COLLECTIONS.APPOINTMENTS, (data) => {
       if (isMounted && Array.isArray(data)) setAppointments(data);
     });
@@ -237,6 +251,8 @@ export const AppProvider = ({ children }) => {
       unsubPurchases && unsubPurchases();
       unsubPayments && unsubPayments();
       unsubAdditionalBilling && unsubAdditionalBilling();
+      unsubPaymentBreakups && unsubPaymentBreakups();
+      unsubMonthlyBillings && unsubMonthlyBillings();
       unsubAppointments && unsubAppointments();
       unsubContactEnquiries && unsubContactEnquiries();
       unsubUsers && unsubUsers();
@@ -795,6 +811,75 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // Payment Breakup Handlers
+  const savePaymentBreakup = async (breakupRecord) => {
+    const docId = String(breakupRecord.id || breakupRecord.site_name || `breakup_${Date.now()}`);
+    const payload = {
+      ...breakupRecord,
+      id: docId,
+      updated_at: new Date().toISOString()
+    };
+    setPaymentBreakups(prev => {
+      const index = prev.findIndex(b => (b.id === docId || b.site_name === breakupRecord.site_name));
+      if (index >= 0) {
+        const next = [...prev];
+        next[index] = payload;
+        return next;
+      }
+      return [payload, ...prev];
+    });
+    try {
+      await addFirestoreDoc(COLLECTIONS.PAYMENT_BREAKUPS, payload, docId);
+    } catch (e) {
+      console.error('Firebase savePaymentBreakup error:', e);
+    }
+  };
+
+  const deletePaymentBreakup = async (docId) => {
+    setPaymentBreakups(prev => prev.filter(b => b.id !== docId && b.site_name !== docId));
+    try {
+      await deleteFirestoreDoc(COLLECTIONS.PAYMENT_BREAKUPS, String(docId));
+    } catch (e) {
+      console.error('Firebase deletePaymentBreakup error:', e);
+    }
+  };
+
+  // Monthly Billing Handlers (CUSTOMERS UPDATES -> Monthly Billing)
+  const saveMonthlyBilling = async (billingRecord) => {
+    const docId = String(billingRecord.id || billingRecord.bill_id || `monthly_${Date.now()}`);
+    const payload = {
+      ...billingRecord,
+      id: docId,
+      bill_id: billingRecord.bill_id || docId,
+      updated_at: new Date().toISOString()
+    };
+    setMonthlyBillings(prev => {
+      const index = prev.findIndex(b => (b.id === docId || (billingRecord.bill_id && b.bill_id === billingRecord.bill_id)));
+      if (index >= 0) {
+        const next = [...prev];
+        next[index] = payload;
+        return next;
+      }
+      return [payload, ...prev];
+    });
+    try {
+      await addFirestoreDoc(COLLECTIONS.MONTHLY_BILLINGS, payload, docId);
+      addNotification(`Monthly billing statement saved successfully.`);
+    } catch (e) {
+      console.error('Firebase saveMonthlyBilling error:', e);
+    }
+  };
+
+  const deleteMonthlyBilling = async (docId) => {
+    setMonthlyBillings(prev => prev.filter(b => b.id !== docId && b.bill_id !== docId));
+    try {
+      await deleteFirestoreDoc(COLLECTIONS.MONTHLY_BILLINGS, String(docId));
+      addNotification('Monthly billing statement deleted.');
+    } catch (e) {
+      console.error('Firebase deleteMonthlyBilling error:', e);
+    }
+  };
+
   // Appointments Handlers (CUSTOMER UPDATES -> Renovation Van Bookings)
   const addAppointment = async (appointmentData) => {
     const newAppointment = {
@@ -1030,6 +1115,16 @@ export const AppProvider = ({ children }) => {
         addAdditionalBilling,
         updateAdditionalBilling,
         deleteAdditionalBilling,
+        paymentBreakups,
+        savePaymentBreakup,
+        deletePaymentBreakup,
+        DEFAULT_PAYMENT_BREAKUP_STAGES,
+        PAYMENT_BREAKUP_COLUMNS_SPEC,
+        monthlyBillings,
+        saveMonthlyBilling,
+        deleteMonthlyBilling,
+        DEFAULT_MONTHLY_BILLING_AREAS,
+        DEFAULT_MONTHLY_BILLING_AMENITIES,
         expenses,
         addExpense,
         deleteExpense,

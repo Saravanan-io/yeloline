@@ -7,6 +7,12 @@ class AuthService {
   static const String _keyUserName = 'user_name';
   static const String _keyUserMobile = 'user_mobile';
 
+  // Client Portal keys
+  static const String _keyIsClientPortalLoggedIn = 'is_client_portal_logged_in';
+  static const String _keyClientPortalSite = 'client_portal_site';
+  static const String _keyClientPortalName = 'client_portal_name';
+  static const String _keyClientPortalPhone = 'client_portal_phone';
+
   static Future<bool> isAdminLoggedIn() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -62,6 +68,72 @@ class AuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyIsUserSkipped, value);
+    } catch (_) {}
+  }
+
+  // ----------------- Client Portal Helpers -----------------
+  static Future<bool> isClientPortalLoggedIn() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      return prefs.getBool(_keyIsClientPortalLoggedIn) ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<String?> getClientPortalSite() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      return prefs.getString(_keyClientPortalSite);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<String?> getClientPortalName() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      return prefs.getString(_keyClientPortalName);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<String?> getClientPortalPhone() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      return prefs.getString(_keyClientPortalPhone);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<void> setClientPortalLoggedIn(
+    bool value, {
+    String? siteName,
+    String? clientName,
+    String? clientPhone,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyIsClientPortalLoggedIn, value);
+      if (siteName != null) await prefs.setString(_keyClientPortalSite, siteName);
+      if (clientName != null) await prefs.setString(_keyClientPortalName, clientName);
+      if (clientPhone != null) await prefs.setString(_keyClientPortalPhone, clientPhone);
+    } catch (_) {}
+  }
+
+  static Future<void> logoutClientPortal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyIsClientPortalLoggedIn, false);
+      await prefs.remove(_keyClientPortalSite);
+      await prefs.remove(_keyClientPortalName);
+      await prefs.remove(_keyClientPortalPhone);
     } catch (_) {}
   }
 

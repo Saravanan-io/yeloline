@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/auth_service.dart';
 import '../auth/client_login_screen.dart';
+import '../client_portal/client_portal_main_layout.dart';
 import '../main_layout.dart';
 
 /// Pre-computed logo geometry & path metrics to avoid on-frame allocations & computeMetrics() overhead.
@@ -114,10 +115,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _checkInitialAuth() async {
     await AuthService.logoutAdmin();
+    final isClientPortal = await AuthService.isClientPortalLoggedIn();
+    final portalSite = await AuthService.getClientPortalSite();
     final isUserSkipped = await AuthService.isUserSkipped();
     final isUserLoggedIn = await AuthService.isUserLoggedIn();
 
-    if ((isUserSkipped || isUserLoggedIn) && !_hasNavigated) {
+    if (((isClientPortal && portalSite != null && portalSite.trim().isNotEmpty) || isUserSkipped || isUserLoggedIn) && !_hasNavigated) {
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted || _hasNavigated) return;
       _navigateToMain();
@@ -135,13 +138,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _hasNavigated = true;
 
     await AuthService.logoutAdmin();
+    final isClientPortal = await AuthService.isClientPortalLoggedIn();
+    final portalSite = await AuthService.getClientPortalSite();
     final isUserSkipped = await AuthService.isUserSkipped();
     final isUserLoggedIn = await AuthService.isUserLoggedIn();
 
     if (!mounted) return;
 
     Widget targetScreen;
-    if (isUserSkipped || isUserLoggedIn) {
+    if (isClientPortal && portalSite != null && portalSite.trim().isNotEmpty) {
+      targetScreen = ClientPortalMainLayout(initialSiteName: portalSite.trim());
+    } else if (isUserSkipped || isUserLoggedIn) {
       targetScreen = const MainLayout();
     } else {
       targetScreen = const ClientLoginScreen();

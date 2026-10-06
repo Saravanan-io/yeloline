@@ -1,0 +1,867 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;500;600;700;800&display=swap');
+
+/* Monthly Billing Module Styles - Crisp, Professional Construction Valuation Spreadsheet */
+
+.monthly-billing-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 0.75rem 2.5rem 0.75rem;
+  font-family: 'Noto Sans Tamil', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  color: #1E293B;
+  box-sizing: border-box;
+}
+
+/* Header Bar */
+.monthly-billing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 0.25rem;
+}
+
+.monthly-billing-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary, #0F172A);
+  letter-spacing: -0.3px;
+  margin: 0 0 3px 0;
+}
+
+.monthly-billing-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-secondary, #64748B);
+  margin: 0;
+}
+
+.header-action-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.header-action-group .btn {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Success Banner */
+.monthly-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid #10B981;
+  color: #065F46;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm, 6px);
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+/* Site Selector Strip - Clean horizontal alignment */
+.monthly-site-selector-card {
+  background: var(--light-card, #FFFFFF);
+  border: 1px solid var(--light-border, #CBD5E1);
+  border-radius: 8px;
+  padding: 0.7rem 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.site-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.selector-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary, #1E293B);
+  white-space: nowrap;
+}
+
+.site-dropdown-input {
+  min-width: 240px;
+  height: 34px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 6px;
+  background-color: #FFFFFF;
+  color: #0F172A;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.site-dropdown-input:focus {
+  border-color: #F59E0B;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+}
+
+.statement-meta-inputs {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.meta-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary, #475569);
+  white-space: nowrap;
+}
+
+.meta-input {
+  width: 110px;
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #0F172A;
+  outline: none;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.meta-input:focus {
+  border-color: #F59E0B;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+}
+
+/* Metric Cards Grid */
+.monthly-billing-container .metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+/* Main Valuation Card */
+.monthly-statement-card {
+  background: #FFFFFF;
+  border: 1.5px solid #000000;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Document Header Box (Peach background matching physical statement) */
+.statement-header-box {
+  background: #FFD8BE; /* Exact peach background */
+  border-bottom: 1.5px solid #000000;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.client-title-edit-wrap {
+  width: 100%;
+  max-width: 820px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 auto;
+}
+
+.edit-title-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #000000;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.client-title-input {
+  flex: 1;
+  max-width: 580px;
+  height: 34px;
+  font-size: 1rem;
+  font-weight: 800;
+  text-align: center;
+  color: #000000;
+  background: #FFFFFF;
+  border: 1.5px solid #000000;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+}
+
+.client-title-input:hover,
+.client-title-input:focus {
+  background: #FFFFFF;
+  border-color: #000000;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
+}
+
+.client-subtitle-edit-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.client-subtitle-input {
+  width: 130px;
+  height: 28px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
+  color: #0284C7;
+  background: #FFFFFF;
+  border: 1.5px solid #000000;
+  border-radius: 16px;
+  padding: 2px 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+/* Valuation Table - Crisp Spreadsheet Alignment */
+.valuation-table-wrapper {
+  overflow-x: auto;
+  width: 100%;
+  background: #FFFFFF;
+}
+
+.valuation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  table-layout: fixed;
+  background: #FFFFFF;
+  border: 1.5px solid #000000;
+}
+
+.valuation-table th {
+  background: #FFFFFF;
+  color: #000000;
+  font-weight: 800;
+  padding: 6px 8px;
+  border: 1px solid #000000;
+  font-size: 0.8rem;
+  text-align: center;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+}
+
+.valuation-table td {
+  padding: 3px 6px;
+  border: 1px solid #000000;
+  vertical-align: middle;
+  height: 36px;
+  box-sizing: border-box;
+}
+
+/* Explicit Column Sizing */
+.valuation-table .col-sno,
+.valuation-table .mb-col-sno {
+  width: 52px;
+  min-width: 52px;
+  text-align: center;
+}
+
+.valuation-table .col-desc,
+.valuation-table .mb-col-desc {
+  width: auto;
+  min-width: 280px;
+  text-align: left;
+}
+
+.valuation-table .col-area,
+.valuation-table .mb-col-area {
+  width: 125px;
+  min-width: 125px;
+  text-align: center;
+}
+
+.valuation-table .col-rate,
+.valuation-table .mb-col-rate {
+  width: 125px;
+  min-width: 125px;
+  text-align: right;
+}
+
+.valuation-table .col-amount,
+.valuation-table .mb-col-amount {
+  width: 175px;
+  min-width: 175px;
+  text-align: right;
+}
+
+.valuation-table .col-actions,
+.valuation-table .mb-col-actions {
+  width: 75px;
+  min-width: 75px;
+  text-align: center;
+}
+
+.valuation-table .cell-center {
+  text-align: center;
+}
+
+/* Centered S.NO */
+.sno-badge,
+.mb-sno {
+  font-weight: 700;
+  color: #000000;
+  font-size: 0.84rem;
+  text-align: center;
+  display: inline-block;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* Cell Inputs */
+.cell-input,
+.mb-cell-input {
+  width: 100%;
+  height: 28px;
+  font-size: 0.84rem;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #000000;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.cell-input:hover,
+.mb-cell-input:hover {
+  background: rgba(241, 245, 249, 0.9);
+  border-color: #CBD5E1;
+}
+
+.cell-input:focus,
+.mb-cell-input:focus {
+  outline: none;
+  background: #FFFFFF;
+  border-color: #F59E0B;
+  box-shadow: 0 0 0 1.5px #F59E0B;
+}
+
+.area-item-row .cell-input,
+.amenity-item-row .cell-input {
+  font-weight: 600;
+}
+
+/* Numeric & Unit Cell Containers (Area column) */
+.unit-input-wrap,
+.mb-unit-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.unit-input-wrap .num-input,
+.mb-unit-wrap .mb-cell-input {
+  width: 65px;
+  height: 28px;
+  text-align: right;
+  font-weight: 600;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  border-radius: 3px;
+  padding: 2px 5px;
+}
+
+.unit-input-wrap .num-input:hover,
+.unit-input-wrap .num-input:focus {
+  border-color: #F59E0B;
+}
+
+.unit-text,
+.mb-unit-label {
+  font-size: 0.8rem;
+  color: #334155;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Currency Cell Containers (Rate & Amount columns) */
+.currency-input-wrap,
+.mb-currency-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  width: 100%;
+  padding-right: 4px;
+}
+
+.currency-symbol,
+.mb-currency-sym {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.currency-input-wrap .num-input,
+.mb-currency-wrap .mb-cell-input {
+  width: 76px;
+  height: 28px;
+  text-align: right;
+  font-weight: 600;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  border-radius: 3px;
+  padding: 2px 5px;
+}
+
+.currency-input-wrap .num-input:hover,
+.currency-input-wrap .num-input:focus {
+  border-color: #F59E0B;
+}
+
+/* Wider inputs for Amount column rows (amenities, additional bill, received, net balance) */
+.valuation-table td:nth-child(5) .currency-input-wrap .num-input,
+.valuation-table td:nth-child(2) .currency-input-wrap .num-input {
+  width: 105px;
+  font-weight: 700;
+}
+
+/* Amount Display Cells */
+.amount-display-cell,
+.mb-amount-cell {
+  text-align: right;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #000000;
+  font-variant-numeric: tabular-nums;
+  padding-right: 6px;
+  white-space: nowrap;
+}
+
+/* Built-up Subtotal Row (Peach - Image 2) */
+.valuation-table .builtup-subtotal-row td {
+  background: #FFD8BE !important; /* Exact peach color from Image 2 */
+  border-top: 1.5px solid #000000 !important;
+  border-bottom: 1.5px solid #000000 !important;
+  font-weight: 800;
+  color: #000000;
+}
+
+.subtotal-label-cell {
+  font-size: 0.84rem;
+  padding-left: 10px !important;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.subtotal-val-cell,
+.subtotal-val-center {
+  text-align: center;
+  font-size: 0.84rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.subtotal-rate-val {
+  text-align: right;
+  padding-right: 6px !important;
+}
+
+.subtotal-amount-cell {
+  text-align: right;
+  font-size: 0.92rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  padding-right: 6px !important;
+  white-space: nowrap;
+}
+
+.add-sub-btn,
+.mb-add-sub-btn {
+  background: #FFFFFF;
+  border: 1px solid #000000;
+  color: #000000;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+}
+
+.add-sub-btn:hover,
+.mb-add-sub-btn:hover {
+  background: #F1F5F9;
+}
+
+/* Delete Row Button */
+.delete-row-btn,
+.mb-delete-btn {
+  background: transparent;
+  border: none;
+  color: #94A3B8;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  margin: 0 auto;
+}
+
+.delete-row-btn:hover,
+.mb-delete-btn:hover {
+  color: #EF4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+/* Amenities Toolbar Row */
+.valuation-table .amenity-toolbar-row td {
+  background: #FAFAFA;
+  border: 1px solid #000000;
+  padding: 6px 12px !important;
+  text-align: left;
+}
+
+.amenity-toolbar-row .btn {
+  font-size: 0.76rem;
+  padding: 3px 10px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Main Structure Total (Light Green - Image 2) */
+.valuation-table .structure-total-row td {
+  background: #C8E6C9 !important; /* Exact light green from Image 2 */
+  border-top: 1.5px solid #000000 !important;
+  border-bottom: 1.5px solid #000000 !important;
+  font-weight: 800;
+  color: #000000;
+}
+
+.total-title-cell,
+.total-title-centered {
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #000000;
+}
+
+.total-val-cell,
+.total-val-right {
+  text-align: right;
+  font-size: 0.92rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  padding-right: 6px !important;
+  color: #000000;
+  white-space: nowrap;
+}
+
+/* Additional Work Bill Row */
+.valuation-table .additional-bill-row td {
+  background: #FFFFFF;
+  border-bottom: 1.5px solid #000000;
+  font-weight: 700;
+}
+
+/* Gross Total Row (Light Yellow - Image 2) */
+.valuation-table .gross-total-row td {
+  background: #FFF9C4 !important; /* Exact light yellow from Image 2 */
+  border-bottom: 1.5px solid #000000;
+  font-weight: 800;
+  color: #000000;
+}
+
+/* Reconciliation Rows */
+.valuation-table .reconciliation-row td {
+  background: #FFFFFF;
+  border-bottom: 1px solid #CBD5E1;
+  font-size: 0.78rem;
+}
+
+.recon-label-cell,
+.recon-text-center {
+  text-align: center;
+  font-weight: 700;
+  color: #1E293B;
+  letter-spacing: 0.2px;
+  font-size: 0.78rem;
+  padding: 5px 8px !important;
+}
+
+.recon-val-cell,
+.recon-amount-cell {
+  text-align: right;
+  font-size: 0.88rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  padding-right: 6px !important;
+  white-space: nowrap;
+}
+
+/* Balance Amount Row (Light Blue - Image 2) */
+.valuation-table .balance-row td {
+  background: #BBDEFB !important; /* Exact light blue from Image 2 */
+  border-top: 1.5px solid #000000 !important;
+  border-bottom: 1.5px solid #000000 !important;
+  font-weight: 800;
+  color: #000000;
+}
+
+.balance-label-cell {
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #000000;
+  letter-spacing: 0.2px;
+  padding: 5px 8px !important;
+}
+
+.balance-val-cell {
+  text-align: right;
+  font-size: 0.92rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  padding-right: 6px !important;
+  color: #000000;
+  white-space: nowrap;
+}
+
+/* Net Balance Row (Light Green - Image 2) */
+.valuation-table .net-balance-row td {
+  background: #C8E6C9 !important; /* Exact light green from Image 2 */
+  border-bottom: 1.5px solid #000000 !important;
+  font-weight: 900;
+  color: #000000;
+}
+
+.net-balance-label-cell {
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: #000000;
+  letter-spacing: 0.2px;
+  padding: 5px 8px !important;
+}
+
+.bold-input,
+.mb-bold-input {
+  font-weight: 700 !important;
+}
+
+.net-input,
+.mb-net-input {
+  font-weight: 900 !important;
+  color: #047857 !important;
+}
+
+.text-muted {
+  color: #64748B;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Card Footer */
+.monthly-card-footer {
+  padding: 0.65rem 1rem;
+  background: #F8FAFC;
+  border-top: 1px solid #CBD5E1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.footer-info {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #64748B);
+}
+
+.footer-info code {
+  background: #E2E8F0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.76rem;
+  color: #0F172A;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Official Document Modal Sheet */
+.official-monthly-sheet {
+  background: #FFFFFF;
+  color: #000000;
+  padding: 1rem;
+  border: 1px solid #CBD5E1;
+  border-radius: 3px;
+  font-family: 'Noto Sans Tamil', 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.sheet-header-box {
+  background: #FFE2D1;
+  border: 1.5px solid #000000;
+  border-bottom: none;
+  padding: 0.65rem;
+  text-align: center;
+}
+
+.sheet-header-box h2 {
+  font-size: 1.05rem;
+  font-weight: 900;
+  margin: 0;
+  color: #000000;
+}
+
+.sheet-header-box h3 {
+  font-size: 0.9rem;
+  font-weight: 800;
+  margin-top: 3px;
+  color: #0369A1;
+}
+
+.sheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  border: 1.5px solid #000000;
+}
+
+.sheet-table th {
+  border: 1px solid #000000;
+  padding: 5px 6px;
+  font-weight: 800;
+  background: #FFFFFF;
+}
+
+.sheet-table td {
+  border: 1px solid #000000;
+  padding: 4px 6px;
+}
+
+.print-peach-row td {
+  background: #FFD8BE !important;
+  font-weight: 800;
+  border-top: 1.5px solid #000000;
+  border-bottom: 1.5px solid #000000;
+}
+
+.print-green-row td {
+  background: #C8E6C9 !important;
+  font-weight: 800;
+  border-top: 1.5px solid #000000;
+  border-bottom: 1.5px solid #000000;
+}
+
+.print-yellow-row td {
+  background: #FFF9C4 !important;
+  font-weight: 800;
+  border-bottom: 1.5px solid #000000;
+}
+
+.print-blue-row td {
+  background: #BBDEFB !important;
+  font-weight: 800;
+  border-top: 1.5px solid #000000;
+  border-bottom: 1.5px solid #000000;
+}
+
+.print-lightgreen-row td {
+  background: #C8E6C9 !important;
+  font-weight: 900;
+  border-bottom: 1.5px solid #000000;
+}
+
+.sheet-signatures {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding-top: 0.5rem;
+}
+
+.sig-block {
+  width: 180px;
+  text-align: center;
+  font-size: 0.76rem;
+  color: #334155;
+}
+
+.sig-line {
+  border-top: 1px solid #000000;
+  margin-bottom: 4px;
+}
+
+.print-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-monthly-billing, #printable-monthly-billing * {
+    visibility: visible;
+  }
+  #printable-monthly-billing {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none;
+  }
+}
