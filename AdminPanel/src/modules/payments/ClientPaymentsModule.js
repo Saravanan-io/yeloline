@@ -24,35 +24,28 @@ import CustomSelect from '../../components/common/CustomSelect/CustomSelect';
 import CSVImportModal from '../../components/common/CSVImportModal/CSVImportModal';
 import './ClientPaymentsModule.css';
 
-const DEFAULT_SITES = [
-  "Skyline Residency",
-  "Modern Minimalist Villa - Perundurai",
-  "Grand Emerald Commercial Hub",
-  "Heritage Home Renovation"
-];
-
 const PAYMENT_MODES = ["Cash", "GPay", "Bank"];
 const ENTERED_BY_OPTIONS = ["Suriya prakash", "Bala"];
 
 const PAYMENT_COLUMNS_SPEC = [
   { key: "payment_id", label: "Payment ID", type: "String", required: true, example: "PAY-701" },
-  { key: "site_name", label: "Select Site", type: "String", required: true, example: "Skyline Residency" },
+  { key: "site_name", label: "Select Site", type: "String", required: true, example: "SITE-101" },
   { key: "payment_date", label: "Date", type: "Date", required: true, example: "2026-01-24" },
   { key: "amount_received", label: "Amount Received (₹)", type: "Number", required: true, example: "1500000" },
   { key: "payment_mode", label: "Payment Mode", type: "String", required: true, example: "Bank" },
   { key: "transaction_reference", label: "Reference Number", type: "String", required: false, example: "HDFC9823104921" },
-  { key: "notes", label: "Notes", type: "String", required: false, example: "Plinth beam milestone payment" },
+  { key: "notes", label: "Notes", type: "String", required: false, example: "Milestone payment" },
   { key: "entered_by", label: "Entered By", type: "String", required: true, example: "Suriya prakash" }
 ];
 
 const SAMPLE_PAYMENT_ROW = {
-  payment_id: "PAY-701",
-  site_name: "Skyline Residency",
+  payment_id: "PAY-001",
+  site_name: "SITE-101",
   payment_date: "2026-01-24",
-  amount_received: 1500000,
+  amount_received: "100000",
   payment_mode: "Bank",
-  transaction_reference: "HDFC9823104921",
-  notes: "Plinth beam milestone payment",
+  transaction_reference: "TXN123456",
+  notes: "Milestone payment",
   entered_by: "Suriya prakash"
 };
 
@@ -74,14 +67,13 @@ export default function ClientPaymentsModule() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [receiptPreviewPayment, setReceiptPreviewPayment] = useState(null);
 
-  // Extracted registered site names or fall back to defaults
-  const allSitesList = Array.from(new Set([
-    ...DEFAULT_SITES,
-    ...(sites || []).map(s => s.name || s.title || s.site_name).filter(Boolean)
-  ]));
+  // Extracted registered site names
+  const allSitesList = Array.from(new Set(
+    (sites || []).map(s => s.name || s.title || s.site_name).filter(Boolean)
+  ));
 
   const [formData, setFormData] = useState({
-    site_name: 'Skyline Residency',
+    site_name: allSitesList[0] || '',
     payment_date: new Date().toISOString().split('T')[0],
     amount_received: '',
     payment_mode: 'Cash',
@@ -91,7 +83,7 @@ export default function ClientPaymentsModule() {
   });
 
   const filteredPayments = payments.filter(p => {
-    const matchesSite = selectedSiteFilter === 'ALL' || (p.site_name || p.project_name || 'Skyline Residency') === selectedSiteFilter;
+    const matchesSite = selectedSiteFilter === 'ALL' || (p.site_name || p.project_name) === selectedSiteFilter;
     const matchesMode = selectedModeFilter === 'ALL' || (p.payment_mode || p.payment_method) === selectedModeFilter;
     const matchesEnteredBy = selectedEnteredByFilter === 'ALL' || (p.entered_by || 'Suriya prakash') === selectedEnteredByFilter;
     return matchesSite && matchesMode && matchesEnteredBy;
@@ -107,7 +99,7 @@ export default function ClientPaymentsModule() {
     });
     setIsModalOpen(false);
     setFormData({
-      site_name: allSitesList[0] || 'Skyline Residency',
+      site_name: allSitesList[0] || '',
       payment_date: new Date().toISOString().split('T')[0],
       amount_received: '',
       payment_mode: 'Cash',
@@ -126,7 +118,7 @@ export default function ClientPaymentsModule() {
     {
       header: "Site",
       key: "site_name",
-      render: (r) => <strong>{r.site_name || r.project_name || 'Skyline Residency'}</strong>
+      render: (r) => <strong>{r.site_name || r.project_name || 'N/A'}</strong>
     },
     {
       header: "Date",
@@ -256,7 +248,7 @@ export default function ClientPaymentsModule() {
             ...allSitesList.map(s => ({
               value: s,
               label: s,
-              badge: payments.filter(p => (p.site_name || p.project_name || 'Skyline Residency') === s).length
+              badge: payments.filter(p => (p.site_name || p.project_name) === s).length
             }))
           ]}
         />

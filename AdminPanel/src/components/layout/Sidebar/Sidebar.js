@@ -11,8 +11,8 @@ import {
   FileText,
   MessageSquare,
   Settings,
-  Calculator,
-  CalendarDays
+  CalendarDays,
+  PlusCircle
 } from 'lucide-react';
 import { useApp } from '../../../context/AppContext';
 import './Sidebar.css';
@@ -85,19 +85,19 @@ export default function Sidebar() {
 
   const adminCoreItems = [
     {
+      id: 'new_site',
+      label: 'New Site',
+      icon: PlusCircle
+    },
+    {
       id: 'create_site',
-      label: 'Create Site',
+      label: 'All Sites',
       icon: Building2
     },
     {
       id: 'additional_billing',
       label: 'Additional Billing',
       icon: Receipt
-    },
-    {
-      id: 'payment_breakup',
-      label: 'Payment Breakup',
-      icon: Calculator
     },
     {
       id: 'site_expenses',

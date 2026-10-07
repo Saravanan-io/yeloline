@@ -487,8 +487,6 @@ export default function ContactEnquiryModule() {
           onImport={handleCSVImport}
         />
       )}
-
-      )}
     </div>
   );
 }

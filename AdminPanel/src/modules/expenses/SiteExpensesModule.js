@@ -48,7 +48,7 @@ const EXPENSE_COLUMNS_SPEC = [
 
 const SAMPLE_EXPENSE_ROW = {
   expense_id: "EXP-801",
-  site_name: "Modern Minimalist Villa - Perundurai",
+  site_name: "SITE-101",
   category: "Labour",
   work_category: "Masonry",
   amount: 85000,
@@ -59,7 +59,7 @@ const SAMPLE_EXPENSE_ROW = {
 };
 
 export default function SiteExpensesModule() {
-  const { expenses, projects, addExpense, deleteExpense, importExpenses, exportToXLS, exportToPDF } = useApp();
+  const { expenses, projects, sites = [], addExpense, deleteExpense, importExpenses, exportToXLS, exportToPDF } = useApp();
 
   const [selectedSiteName, setSelectedSiteName] = useState('ALL');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -75,13 +75,14 @@ export default function SiteExpensesModule() {
   // Dynamic Site Names list for modal & filter selection
   const siteList = Array.from(
     new Set([
+      ...(sites || []).map(s => s.site_name || s.name || s.title),
       ...projects.map(p => p.title),
       ...expenses.map(e => e.site_name)
     ].filter(Boolean))
   );
 
   const [formData, setFormData] = useState({
-    site_name: 'Modern Minimalist Villa - Perundurai',
+    site_name: siteList[0] || '',
     category: 'Labour',
     work_category: 'Masonry',
     amount: '',
@@ -109,7 +110,7 @@ export default function SiteExpensesModule() {
     addExpense(formData);
     setIsModalOpen(false);
     setFormData({
-      site_name: siteList[0] || 'Modern Minimalist Villa - Perundurai',
+      site_name: siteList[0] || '',
       category: 'Labour',
       work_category: 'Masonry',
       amount: '',

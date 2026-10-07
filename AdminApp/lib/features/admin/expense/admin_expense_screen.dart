@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/constants/app_colors.dart';
 
 class AdminExpenseScreen extends StatefulWidget {
@@ -11,7 +12,7 @@ class AdminExpenseScreen extends StatefulWidget {
 class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  String _selectedSite = 'Skyline Residency, Ahmedabad';
+  String? _selectedSite;
   String _selectedCategory = 'Masonry';
   String _expenseType = 'Labour';
   String _paymentMode = 'Cash';
@@ -21,13 +22,6 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
   DateTime _selectedDate = DateTime.now();
 
   final _amountController = TextEditingController();
-  final _noteController = TextEditingController();
-
-  final List<String> _siteList = [
-    'Skyline Residency, Ahmedabad',
-    'Thindal Residence',
-    'Emerald Heights',
-  ];
 
   final List<String> _categoryList = [
     'Masonry',
@@ -66,84 +60,177 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
   @override
   void dispose() {
     _amountController.dispose();
-    _noteController.dispose();
     super.dispose();
   }
 
-  void _saveExpense() {
-    if (!_formKey.currentState!.validate()) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Expense recorded successfully!'),
-          ],
+  void _showAddLabourDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Add New Labour', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            hintText: 'Enter worker name (e.g. Raju Master)',
+            hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primaryYellow, width: 1.5)),
+          ),
         ),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 2),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = controller.text.trim();
+              if (val.isNotEmpty) {
+                setState(() {
+                  if (!_labourList.contains(val)) {
+                    _labourList.add(val);
+                  }
+                  _selectedLabour = val;
+                });
+              }
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryYellow,
+              foregroundColor: AppColors.darkCharcoal,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Add', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Screen Title Header
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Expense Entry',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'Add Expense',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'Quickly record labour & other expenses',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: AppColors.textSecondary),
-              ),
-            ],
-          ),
+  Future<void> _saveExpense() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedSite == null || _selectedSite!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a site')),
+      );
+      return;
+    }
 
-          const SizedBox(height: 20),
+    try {
+      final expId = 'EXP-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+      final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+      await FirebaseFirestore.instance.collection('expenses').doc(expId).set({
+        'expense_id': expId,
+        'site_name': _selectedSite,
+        'work_category': _selectedCategory,
+        'category': _expenseType,
+        'amount': _amountController.text.trim(),
+        'date': dateStr,
+        'payment_mode': _paymentMode,
+        'entered_by': _enteredBy ?? 'Suriya prakash',
+        'notes': '',
+        'created_at': FieldValue.serverTimestamp(),
+      });
 
-          // Form Card Container
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.cardWhite,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.borderLight),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4)),
+      _amountController.clear();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Expense recorded successfully!'),
               ],
             ),
-            child: Form(
-              key: _formKey,
-              child: Column(
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving expense: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('sites').snapshots(),
+      builder: (context, snapshot) {
+        final siteDocs = snapshot.data?.docs ?? [];
+        final siteList = siteDocs.map((d) {
+          final m = d.data() as Map<String, dynamic>;
+          return (m['site_name'] ?? m['title'] ?? m['site_id'] ?? d.id).toString();
+        }).toList();
+
+        if (siteList.isNotEmpty && (_selectedSite == null || !siteList.contains(_selectedSite))) {
+          _selectedSite = siteList.first;
+        }
+
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Screen Title Header
+              const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Select Site
-                  _buildLabel('Select Site'),
-                  _buildDropdown<String>(
-                    value: _selectedSite,
-                    items: _siteList,
-                    icon: Icons.business_rounded,
-                    onChanged: (val) => setState(() => _selectedSite = val!),
+                  Text(
+                    'Expense Entry',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 2),
+                  Text(
+                    'Add Expense',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Quickly record labour & material expenses',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Form Card Container
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.cardWhite,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.borderLight),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Select Site
+                      _buildLabel('Select Site'),
+                      _buildDropdown<String>(
+                        value: _selectedSite ?? (siteList.isNotEmpty ? siteList.first : 'No sites available'),
+                        items: siteList.isNotEmpty ? siteList : ['No sites available'],
+                        icon: Icons.business_rounded,
+                        onChanged: (val) => setState(() => _selectedSite = val!),
+                      ),
+                      const SizedBox(height: 16),
 
                   // Date
                   _buildLabel('Date'),
@@ -194,13 +281,13 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Expense Type (Labour / Other Expense Toggle)
+                  // Expense Type (Labour / Material Toggle)
                   _buildLabel('Expense Type'),
                   Row(
                     children: [
                       Expanded(child: _buildToggleButton('Labour', Icons.groups_rounded, _expenseType == 'Labour', () => setState(() => _expenseType = 'Labour'))),
                       const SizedBox(width: 10),
-                      Expanded(child: _buildToggleButton('Other Expense', Icons.inventory_2_rounded, _expenseType == 'Other Expense', () => setState(() => _expenseType = 'Other Expense'))),
+                      Expanded(child: _buildToggleButton('Material', Icons.inventory_2_rounded, _expenseType == 'Material', () => setState(() => _expenseType = 'Material'))),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -215,9 +302,11 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
                       items: _labourList,
                       icon: Icons.person_search_rounded,
                       onChanged: (val) => setState(() => _selectedLabour = val),
+                      onAddNew: _showAddLabourDialog,
+                      addNewLabel: '+ Add New Labour',
                     ),
                     const SizedBox(height: 16),
-                  ] else if (_expenseType == 'Other Expense') ...[
+                  ] else if (_expenseType == 'Material') ...[
                     _buildLabel('Supplier Name'),
                     _buildSearchableDropdown(
                       title: 'Select Supplier Name',
@@ -251,15 +340,6 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                     decoration: _inputDecoration('Enter amount', Icons.currency_rupee_rounded),
                     validator: (v) => v == null || v.trim().isEmpty ? 'Please enter amount' : null,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Description or Note
-                  _buildLabel('Description or Note'),
-                  TextFormField(
-                    controller: _noteController,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                    decoration: _inputDecoration('Enter note', Icons.note_alt_rounded),
                   ),
                   const SizedBox(height: 16),
 
@@ -329,6 +409,8 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
           const SizedBox(height: 24),
         ],
       ),
+    );
+      },
     );
   }
 
@@ -450,6 +532,8 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
     required List<String> items,
     required IconData icon,
     required ValueChanged<String> onChanged,
+    VoidCallback? onAddNew,
+    String? addNewLabel,
   }) {
     return InkWell(
       onTap: () {
@@ -464,6 +548,8 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
               selectedValue: value,
               icon: icon,
               onSelect: onChanged,
+              onAddNew: onAddNew,
+              addNewLabel: addNewLabel,
             );
           },
         );
@@ -507,6 +593,8 @@ class _SearchablePickerSheet extends StatefulWidget {
   final String? selectedValue;
   final IconData icon;
   final ValueChanged<String> onSelect;
+  final VoidCallback? onAddNew;
+  final String? addNewLabel;
 
   const _SearchablePickerSheet({
     required this.title,
@@ -514,6 +602,8 @@ class _SearchablePickerSheet extends StatefulWidget {
     required this.selectedValue,
     required this.icon,
     required this.onSelect,
+    this.onAddNew,
+    this.addNewLabel,
   });
 
   @override
@@ -584,6 +674,37 @@ class _SearchablePickerSheetState extends State<_SearchablePickerSheet> {
           ),
 
           const SizedBox(height: 8),
+
+          // Add New Button if provided
+          if (widget.onAddNew != null) ...[
+            InkWell(
+              onTap: () {
+                Navigator.pop(context);
+                widget.onAddNew!();
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.lightYellowBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primaryYellow, width: 1.5),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.add_circle_outline_rounded, color: AppColors.darkCharcoal, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      widget.addNewLabel ?? '+ Add New',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // Search Box
           TextField(

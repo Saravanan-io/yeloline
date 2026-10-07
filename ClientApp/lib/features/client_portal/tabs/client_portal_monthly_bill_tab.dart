@@ -120,21 +120,21 @@ class _ClientPortalMonthlyBillTabState extends State<ClientPortalMonthlyBillTab>
   }
 
   Widget _buildMonthlyStatementContent(BuildContext context, Map<String, dynamic> data) {
-    final clientTitle = data['client_title']?.toString() ?? 'திரு. நகுலன் குடும்பத்தார் இல்லம், மூவலூர்.';
-    final statementSubtitle = data['statement_subtitle']?.toString() ?? 'மதிப்பீடு';
-    final billDate = data['bill_date']?.toString() ?? '14.6.2026';
-    final settlementDate = data['settlement_date']?.toString() ?? '25.8.2026';
+    final clientTitle = data['client_title']?.toString() ?? widget.siteName;
+    final statementSubtitle = data['statement_subtitle']?.toString() ?? 'Monthly Valuation Statement';
+    final billDate = data['bill_date']?.toString() ?? '-';
+    final settlementDate = data['settlement_date']?.toString() ?? '-';
 
     final areaItems = (data['area_items'] as List<dynamic>?) ?? [];
     final amenityItems = (data['amenity_items'] as List<dynamic>?) ?? [];
 
-    final totalBuiltupArea = data['total_builtup_area'] ?? 2002;
-    final averageBuiltupRate = data['average_builtup_rate'] ?? 2110;
-    final totalBuiltupCost = data['total_builtup_cost'] ?? 4224700;
-    final mainStructureTotal = data['main_structure_total'] ?? 4344700;
-    final additionalWorkBill = data['additional_work_bill'] ?? 2416700;
+    final totalBuiltupArea = data['total_builtup_area'] ?? 0;
+    final averageBuiltupRate = data['average_builtup_rate'] ?? 0;
+    final totalBuiltupCost = data['total_builtup_cost'] ?? 0;
+    final mainStructureTotal = data['main_structure_total'] ?? 0;
+    final additionalWorkBill = data['additional_work_bill'] ?? 0;
     final receivedAdditional = data['received_additional'] ?? 0;
-    final receivedQuoted = data['received_quoted'] ?? 6505000;
+    final receivedQuoted = data['received_quoted'] ?? 0;
 
     // Smart financial fallbacks so cards never display 0.00 if records exist
     final num calculatedGross = (mainStructureTotal is num ? mainStructureTotal : (num.tryParse(mainStructureTotal.toString()) ?? 0)) +

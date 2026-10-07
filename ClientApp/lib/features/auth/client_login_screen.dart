@@ -75,6 +75,8 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
   final _clientPortalFormKey = GlobalKey<FormState>();
   final _customSiteController = TextEditingController();
   final _clientPhoneController = TextEditingController();
+  final _clientPasswordController = TextEditingController();
+  bool _obscurePortalPassword = true;
   bool _isPortalLoading = false;
   String? _portalErrorMessage;
 
@@ -85,6 +87,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     _otpController.dispose();
     _customSiteController.dispose();
     _clientPhoneController.dispose();
+    _clientPasswordController.dispose();
     _timerObj?.cancel();
     super.dispose();
   }
@@ -168,28 +171,28 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     }
   }
 
-  Future<void> _handleSkip() async {
-    await AuthService.setUserSkipped(true);
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainLayout()),
-    );
-  }
-
   Future<void> _handleClientPortalLogin() async {
-    final phone = _clientPhoneController.text.trim();
+    final phone = _clientPhoneController.text.trim().replaceAll(RegExp(r'\D'), '');
+    final password = _clientPasswordController.text.trim();
     final siteInput = _customSiteController.text.trim();
 
-    if (phone.isEmpty && siteInput.isEmpty) {
+    if (phone.isEmpty) {
       setState(() {
-        _portalErrorMessage = 'Please enter your registered mobile number or site name.';
+        _portalErrorMessage = 'Please enter your registered mobile number.';
       });
       return;
     }
 
-    if (phone.isNotEmpty && phone.length != 10) {
+    if (phone.length != 10) {
       setState(() {
         _portalErrorMessage = 'Please enter a valid 10-digit mobile number.';
+      });
+      return;
+    }
+
+    if (password.isEmpty) {
+      setState(() {
+        _portalErrorMessage = 'Please enter your password registered by administrator.';
       });
       return;
     }
@@ -200,36 +203,93 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     });
 
     try {
-      String resolvedSite = siteInput;
-
-      // Query Firestore sites collection directly (No mock data)
+      // 1. Query Firestore 'sites' collection directly
       final sitesSnapshot = await FirebaseFirestore.instance.collection('sites').get();
 
-      if (resolvedSite.isEmpty && phone.isNotEmpty) {
-        // Look up by client phone
-        for (final doc in sitesSnapshot.docs) {
-          final d = Map<String, dynamic>.from(doc.data());
-          final cPhone = d['client_phone']?.toString().replaceAll(RegExp(r'\D'), '') ?? '';
-          final sPhone = d['phone']?.toString().replaceAll(RegExp(r'\D'), '') ?? '';
-          if (cPhone == phone || sPhone == phone) {
-            resolvedSite = d['site_name']?.toString() ?? d['name']?.toString() ?? '';
+      // 2. Also query 'users' collection for client credentials
+      QuerySnapshot? usersSnapshot;
+      try {
+        usersSnapshot = await FirebaseFirestore.instance.collection('users').get();
+      } catch (_) {}
+
+      // Find matching site created by admin for this registered mobile number
+      Map<String, dynamic>? matchingSiteData;
+      String resolvedSite = '';
+      String resolvedClientName = '';
+      String registeredPassword = '';
+
+      for (final doc in sitesSnapshot.docs) {
+        final d = doc.data();
+        final cPhone = d['client_phone']?.toString().replaceAll(RegExp(r'\D'), '') ?? '';
+        final sPhone = d['phone']?.toString().replaceAll(RegExp(r'\D'), '') ?? '';
+
+        if (cPhone == phone || sPhone == phone) {
+          final sName = d['site_name']?.toString() ?? d['name']?.toString() ?? '';
+          if (siteInput.isEmpty || sName.toLowerCase().contains(siteInput.toLowerCase())) {
+            matchingSiteData = d;
+            resolvedSite = sName;
+            resolvedClientName = d['client_name']?.toString() ?? d['clientName']?.toString() ?? '';
+            registeredPassword = d['client_password']?.toString() ?? d['password']?.toString() ?? '';
             break;
           }
         }
       }
 
-      if (resolvedSite.isEmpty) {
+      // If registeredPassword is not on site doc, check 'users' collection
+      if (registeredPassword.isEmpty && usersSnapshot != null) {
+        for (final doc in usersSnapshot.docs) {
+          final raw = doc.data();
+          if (raw is! Map) continue;
+          final u = Map<String, dynamic>.from(raw);
+          final uPhone = u['phone']?.toString().replaceAll(RegExp(r'\D'), '') ?? '';
+          final role = u['role']?.toString().toLowerCase() ?? '';
+          if (uPhone == phone && (role.isEmpty || role == 'client')) {
+            registeredPassword = u['password']?.toString() ?? '';
+            if (resolvedSite.isEmpty) {
+              resolvedSite = u['site_name']?.toString() ?? '';
+            }
+            if (resolvedClientName.isEmpty) {
+              resolvedClientName = u['name']?.toString() ?? u['full_name']?.toString() ?? '';
+            }
+            break;
+          }
+        }
+      }
+
+      // STRICT VALIDATION:
+      // A) Does this mobile number match a site registered by admin?
+      if (matchingSiteData == null && resolvedSite.isEmpty) {
         setState(() {
           _isPortalLoading = false;
-          _portalErrorMessage = 'No site registered for mobile $phone. Please enter your Site Name.';
+          _portalErrorMessage = 'No site registered for mobile number $phone. Only clients registered by admin can log in.';
         });
         return;
       }
 
+      // B) Did the admin register a password for this site?
+      if (registeredPassword.isEmpty) {
+        setState(() {
+          _isPortalLoading = false;
+          _portalErrorMessage = 'No password found for this account. Please contact the site administrator.';
+        });
+        return;
+      }
+
+      // C) Does the entered password match the registered password?
+      if (registeredPassword.trim() != password) {
+        setState(() {
+          _isPortalLoading = false;
+          _portalErrorMessage = 'Incorrect password. Please enter the password registered by your site administrator.';
+        });
+        return;
+      }
+
+      // Login Successful: Save session and navigate
       await AuthService.setClientPortalLoggedIn(
         true,
         siteName: resolvedSite,
-        clientPhone: phone.isNotEmpty ? phone : null,
+        clientName: resolvedClientName.isNotEmpty ? resolvedClientName : null,
+        clientPhone: phone,
       );
 
       if (!mounted) return;
@@ -241,7 +301,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     } catch (e) {
       setState(() {
         _isPortalLoading = false;
-        _portalErrorMessage = 'Error: ${e.toString()}';
+        _portalErrorMessage = 'Authentication error: ${e.toString()}';
       });
     }
   }
@@ -325,24 +385,6 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                     _buildCustomerLoginCard()
                   else
                     _buildClientPortalLoginCard(),
-
-                  const SizedBox(height: 20),
-
-                  // Skip to Guest Navigation
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: _handleSkip,
-                      icon: const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.textSecondary),
-                      label: const Text(
-                        'Explore App as Guest',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -555,12 +597,40 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
 
             const SizedBox(height: 16),
 
-            // Field 2: Site / Project Name (Direct Input)
-            _buildInputLabel('Site / Project Name'),
+            // Field 2: Password
+            _buildInputLabel('Password *'),
+            TextFormField(
+              controller: _clientPasswordController,
+              obscureText: _obscurePortalPassword,
+              decoration: _buildInputDecoration(
+                hintText: 'Enter password registered by admin',
+                prefixIcon: Icons.lock_outline_rounded,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePortalPassword
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    color: AppColors.textMuted,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePortalPassword = !_obscurePortalPassword;
+                    });
+                  },
+                ),
+              ),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Field 3: Site / Project Name (Optional)
+            _buildInputLabel('Site / Project Name (Optional)'),
             TextFormField(
               controller: _customSiteController,
               decoration: _buildInputDecoration(
-                hintText: 'Enter your project or site name',
+                hintText: 'Auto-detected from registered site',
                 prefixIcon: Icons.business_rounded,
               ),
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -723,73 +793,6 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 20),
-
-            // Mode Switcher (Sign In vs Sign Up)
-            Container(
-              height: 42,
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isSignUp = false;
-                          _errorMessage = null;
-                        });
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        decoration: BoxDecoration(
-                          color: !_isSignUp ? AppColors.darkCharcoal : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Sign In',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: !_isSignUp ? Colors.white : AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isSignUp = true;
-                          _errorMessage = null;
-                        });
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        decoration: BoxDecoration(
-                          color: _isSignUp ? AppColors.darkCharcoal : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Sign Up',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: _isSignUp ? Colors.white : AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ),
             const SizedBox(height: 20),
 
@@ -973,6 +976,44 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                       ),
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            // Sign Up option below the login field/button
+            Center(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isSignUp = !_isSignUp;
+                    _errorMessage = null;
+                    _isOtpSent = false;
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      children: [
+                        TextSpan(
+                          text: _isSignUp
+                              ? 'Already have an account? '
+                              : 'Don\'t have an account? ',
+                        ),
+                        TextSpan(
+                          text: _isSignUp ? 'Sign In' : 'Sign Up',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkCharcoal,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -996,11 +1037,13 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
   InputDecoration _buildInputDecoration({
     required String hintText,
     required IconData prefixIcon,
+    Widget? suffixIcon,
   }) {
     return InputDecoration(
       hintText: hintText,
       hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
       prefixIcon: Icon(prefixIcon, size: 18, color: AppColors.textSecondary),
+      suffixIcon: suffixIcon,
       filled: true,
       fillColor: const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

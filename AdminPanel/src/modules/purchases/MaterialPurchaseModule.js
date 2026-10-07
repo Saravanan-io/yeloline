@@ -25,13 +25,6 @@ import CustomSelect from '../../components/common/CustomSelect/CustomSelect';
 import CSVImportModal from '../../components/common/CSVImportModal/CSVImportModal';
 import './MaterialPurchaseModule.css';
 
-const DEFAULT_SITES = [
-  "Skyline Residency",
-  "Modern Minimalist Villa - Perundurai",
-  "Grand Emerald Commercial Hub",
-  "Heritage Home Renovation"
-];
-
 const DEPARTMENTS = [
   "Masonry",
   "Structure",
@@ -67,7 +60,7 @@ const ENTERED_BY_OPTIONS = ["Suriya prakash", "Bala"];
 
 const PURCHASE_COLUMNS_SPEC = [
   { key: "purchase_id", label: "PO Ref ID", type: "String", required: true, example: "PO-301" },
-  { key: "site_name", label: "Select Site", type: "String", required: true, example: "Skyline Residency" },
+  { key: "site_name", label: "Select Site", type: "String", required: true, example: "SITE-101" },
   { key: "department", label: "Department", type: "String", required: true, example: "Masonry" },
   { key: "vendor_name", label: "Supplier Name", type: "String", required: true, example: "Shree Ganesh Bricks" },
   { key: "material_category", label: "Product / Material", type: "String", required: true, example: "Red Bricks" },
@@ -78,14 +71,14 @@ const PURCHASE_COLUMNS_SPEC = [
 ];
 
 const SAMPLE_PURCHASE_ROW = {
-  purchase_id: "PO-301",
-  site_name: "Skyline Residency",
+  purchase_id: "PO-001",
+  site_name: "SITE-101",
   department: "Masonry",
   vendor_name: "Shree Ganesh Bricks",
   material_category: "Red Bricks",
   order_date: "2026-01-24",
-  total_amount: 165000,
-  amount_paid: 165000,
+  total_amount: "50000",
+  amount_paid: "50000",
   entered_by: "Suriya prakash"
 };
 
@@ -107,16 +100,15 @@ export default function MaterialPurchaseModule() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [viewingDetailPurchase, setViewingDetailPurchase] = useState(null);
 
-  // Extracted registered site names or fall back to defaults
-  const allSitesList = Array.from(new Set([
-    ...DEFAULT_SITES,
-    ...(sites || []).map(s => s.name || s.title || s.site_name).filter(Boolean)
-  ]));
+  // Extracted registered site names
+  const allSitesList = Array.from(new Set(
+    (sites || []).map(s => s.name || s.title || s.site_name).filter(Boolean)
+  ));
 
   const [formData, setFormData] = useState({
-    site_name: 'Skyline Residency',
+    site_name: allSitesList[0] || '',
     department: 'Masonry',
-    vendor_name: 'Shree Ganesh Bricks',
+    vendor_name: '',
     material_category: 'Red Bricks',
     order_date: new Date().toISOString().split('T')[0],
     total_amount: '',
@@ -125,7 +117,7 @@ export default function MaterialPurchaseModule() {
   });
 
   const filteredPurchases = purchases.filter(p => {
-    const matchesSite = selectedSiteFilter === 'ALL' || (p.site_name || 'Skyline Residency') === selectedSiteFilter;
+    const matchesSite = selectedSiteFilter === 'ALL' || (p.site_name || p.project_name) === selectedSiteFilter;
     const matchesMaterial = selectedMaterialFilter === 'ALL' || p.material_category === selectedMaterialFilter || p.department === selectedMaterialFilter;
     const matchesEnteredBy = selectedEnteredByFilter === 'ALL' || (p.entered_by || 'Suriya prakash') === selectedEnteredByFilter;
     return matchesSite && matchesMaterial && matchesEnteredBy;
@@ -145,9 +137,9 @@ export default function MaterialPurchaseModule() {
     });
     setIsModalOpen(false);
     setFormData({
-      site_name: allSitesList[0] || 'Skyline Residency',
+      site_name: allSitesList[0] || '',
       department: 'Masonry',
-      vendor_name: 'Shree Ganesh Bricks',
+      vendor_name: '',
       material_category: 'Red Bricks',
       order_date: new Date().toISOString().split('T')[0],
       total_amount: '',
@@ -165,7 +157,7 @@ export default function MaterialPurchaseModule() {
     {
       header: "Site",
       key: "site_name",
-      render: (r) => <strong>{r.site_name || 'Skyline Residency'}</strong>
+      render: (r) => <strong>{r.site_name || 'N/A'}</strong>
     },
     {
       header: "Department",
@@ -307,7 +299,7 @@ export default function MaterialPurchaseModule() {
             ...allSitesList.map(s => ({
               value: s,
               label: s,
-              badge: purchases.filter(p => (p.site_name || 'Skyline Residency') === s).length
+              badge: purchases.filter(p => (p.site_name || p.project_name) === s).length
             }))
           ]}
         />
@@ -513,7 +505,7 @@ export default function MaterialPurchaseModule() {
               <div>
                 <h2 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-primary)' }}>{viewingDetailPurchase.vendor_name}</h2>
                 <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  Site: <strong>{viewingDetailPurchase.site_name || 'Skyline Residency'}</strong> | Dept: <strong>{viewingDetailPurchase.department || 'Masonry'}</strong>
+                  Site: <strong>{viewingDetailPurchase.site_name || 'N/A'}</strong> | Dept: <strong>{viewingDetailPurchase.department || 'N/A'}</strong>
                 </div>
               </div>
               <span style={{ fontWeight: '700', color: 'var(--accent-yellow-dark)', fontSize: '1rem' }}>

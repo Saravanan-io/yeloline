@@ -32,21 +32,36 @@ export default function PaymentBreakupModule() {
     exportToPDF
   } = useApp();
 
-  // Registered site names fallback
+  // Registered site names
   const siteList = useMemo(() => {
-    const list = Array.from(new Set([
-      ...(sites || []).map(s => s.site_name || s.name || s.title).filter(Boolean),
-      "Skyline Residency",
-      "Modern Minimalist Villa - Perundurai",
-      "Grand Emerald Commercial Hub",
-      "Heritage Home Renovation"
-    ]));
-    return list;
+    return Array.from(new Set(
+      (sites || []).map(s => s.site_name || s.name || s.title).filter(Boolean)
+    ));
   }, [sites]);
 
-  const [selectedSite, setSelectedSite] = useState(() => siteList[0] || 'Skyline Residency');
-  const [floorTitle, setFloorTitle] = useState('GROUND FLOOR');
-  const [milestones, setMilestones] = useState([]);
+  const DEFAULT_FLOOR_TITLES = [
+    'GROUND FLOOR',
+    'FIRST FLOOR',
+    'SECOND FLOOR',
+    'THIRD FLOOR',
+    'FOURTH FLOOR',
+    'TERRACE FLOOR'
+  ];
+
+  const [selectedSite, setSelectedSite] = useState(() => siteList[0] || '');
+
+  useEffect(() => {
+    if (siteList.length > 0 && (!selectedSite || !siteList.includes(selectedSite))) {
+      setSelectedSite(siteList[0]);
+    }
+  }, [siteList, selectedSite]);
+  const [floors, setFloors] = useState([
+    {
+      id: 'floor_1',
+      floor_title: 'GROUND FLOOR',
+      milestones: []
+    }
+  ]);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -82,12 +97,28 @@ export default function PaymentBreakupModule() {
     if (!selectedSite) return;
     const existing = paymentBreakups.find(b => b.site_name === selectedSite || b.id === selectedSite);
 
-    if (existing && Array.isArray(existing.milestones) && existing.milestones.length > 0) {
-      setMilestones(existing.milestones);
-      setFloorTitle(existing.floor_title || 'GROUND FLOOR');
+    if (existing && Array.isArray(existing.floors) && existing.floors.length > 0) {
+      setFloors(existing.floors.map((f, idx) => ({
+        id: f.id || `floor_${idx + 1}`,
+        floor_title: f.floor_title || `FLOOR ${idx + 1}`,
+        milestones: Array.isArray(f.milestones) ? f.milestones : []
+      })));
+    } else if (existing && Array.isArray(existing.milestones) && existing.milestones.length > 0) {
+      setFloors([
+        {
+          id: 'floor_1',
+          floor_title: existing.floor_title || 'GROUND FLOOR',
+          milestones: existing.milestones
+        }
+      ]);
     } else {
-      setMilestones(getBlankDefaultMilestones());
-      setFloorTitle('GROUND FLOOR');
+      setFloors([
+        {
+          id: 'floor_1',
+          floor_title: 'GROUND FLOOR',
+          milestones: getBlankDefaultMilestones()
+        }
+      ]);
     }
   }, [selectedSite, paymentBreakups, getBlankDefaultMilestones]);
 
@@ -97,62 +128,137 @@ export default function PaymentBreakupModule() {
   }, [sites, selectedSite]);
 
   // Calculations
+  const allMilestones = useMemo(() => {
+    return floors.flatMap(f => f.milestones || []);
+  }, [floors]);
+
   const totalAmount = useMemo(() => {
-    return milestones.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-  }, [milestones]);
+    return floors.reduce((acc, f) => {
+      return acc + (f.milestones || []).reduce((mAcc, curr) => mAcc + (Number(curr.amount) || 0), 0);
+    }, 0);
+  }, [floors]);
 
   const scheduledCount = useMemo(() => {
-    return milestones.filter(m => m.work_schedule && String(m.work_schedule).trim() !== '').length;
-  }, [milestones]);
+    return allMilestones.filter(m => m.work_schedule && String(m.work_schedule).trim() !== '').length;
+  }, [allMilestones]);
 
   const filledAmountsCount = useMemo(() => {
-    return milestones.filter(m => m.amount !== '' && m.amount !== null && !isNaN(Number(m.amount)) && Number(m.amount) > 0).length;
-  }, [milestones]);
+    return allMilestones.filter(m => m.amount !== '' && m.amount !== null && !isNaN(Number(m.amount)) && Number(m.amount) > 0).length;
+  }, [allMilestones]);
 
   // Handle Input Changes
-  const handleStageFieldChange = (index, field, value) => {
-    setMilestones(prev => {
+  const handleFloorTitleChange = (floorIndex, value) => {
+    setFloors(prev => {
       const next = [...prev];
-      next[index] = {
-        ...next[index],
-        [field]: value
-      };
+      next[floorIndex] = { ...next[floorIndex], floor_title: value };
       return next;
     });
   };
 
-  // Add new milestone row
-  const handleAddMilestone = () => {
-    setMilestones(prev => [
+  const handleStageFieldChange = (floorIndex, milestoneIndex, field, value) => {
+    setFloors(prev => {
+      const next = [...prev];
+      const floor = { ...next[floorIndex] };
+      const updatedMilestones = [...floor.milestones];
+      updatedMilestones[milestoneIndex] = {
+        ...updatedMilestones[milestoneIndex],
+        [field]: value
+      };
+      floor.milestones = updatedMilestones;
+      next[floorIndex] = floor;
+      return next;
+    });
+  };
+
+  // Add new milestone row to specific floor
+  const handleAddMilestone = (floorIndex) => {
+    setFloors(prev => {
+      const next = [...prev];
+      const floor = { ...next[floorIndex] };
+      const newSno = (floor.milestones || []).length + 1;
+      floor.milestones = [
+        ...(floor.milestones || []),
+        {
+          id: `stage_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+          sno: newSno,
+          stage_name: `ON COMPLETION OF STAGE ${newSno}`,
+          amount: "",
+          work_schedule: ""
+        }
+      ];
+      next[floorIndex] = floor;
+      return next;
+    });
+  };
+
+  // Delete milestone row from specific floor
+  const handleDeleteMilestone = (floorIndex, milestoneIndex) => {
+    setFloors(prev => {
+      const next = [...prev];
+      const floor = { ...next[floorIndex] };
+      if ((floor.milestones || []).length <= 1) {
+        alert("At least one milestone row is required in this floor.");
+        return prev;
+      }
+      floor.milestones = floor.milestones
+        .filter((_, i) => i !== milestoneIndex)
+        .map((item, i) => ({ ...item, sno: i + 1 }));
+      next[floorIndex] = floor;
+      return next;
+    });
+  };
+
+  // Reset floor to default 10 blank fields
+  const handleResetFloorToDefault = (floorIndex) => {
+    const floor = floors[floorIndex];
+    if (window.confirm(`Are you sure you want to reset "${floor.floor_title || `Floor #${floorIndex + 1}`}" to the default blank 10-stage schedule?`)) {
+      setFloors(prev => {
+        const next = [...prev];
+        next[floorIndex] = {
+          ...next[floorIndex],
+          milestones: getBlankDefaultMilestones()
+        };
+        return next;
+      });
+    }
+  };
+
+  const handleAddFloor = () => {
+    const nextIdx = floors.length;
+    const defaultTitle = nextIdx < DEFAULT_FLOOR_TITLES.length
+      ? DEFAULT_FLOOR_TITLES[nextIdx]
+      : `FLOOR ${nextIdx + 1}`;
+
+    setFloors(prev => [
       ...prev,
       {
-        id: `stage_${Date.now()}`,
-        sno: prev.length + 1,
-        stage_name: `ON COMPLETION OF STAGE ${prev.length + 1}`,
-        amount: "",
-        work_schedule: ""
+        id: `floor_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        floor_title: defaultTitle,
+        milestones: getBlankDefaultMilestones()
       }
     ]);
   };
 
-  // Delete milestone row
-  const handleDeleteMilestone = (index) => {
-    if (milestones.length <= 1) {
-      alert("At least one milestone row is required.");
+  const handleRemoveFloor = (floorIndex) => {
+    if (floors.length <= 1) {
+      alert("At least one floor section is required.");
       return;
     }
-    setMilestones(prev => {
-      const next = prev.filter((_, i) => i !== index);
-      // Re-assign S.NO sequentially
-      return next.map((item, i) => ({ ...item, sno: i + 1 }));
-    });
+    const floor = floors[floorIndex];
+    if (window.confirm(`Are you sure you want to remove "${floor.floor_title || `Floor #${floorIndex + 1}`}"?`)) {
+      setFloors(prev => prev.filter((_, i) => i !== floorIndex));
+    }
   };
 
-  // Reset to default 10 blank fields
   const handleResetToDefault = () => {
     if (window.confirm("Are you sure you want to reset this site's payment breakup to the default blank 10-stage schedule? Any unsaved edits will be cleared.")) {
-      setMilestones(getBlankDefaultMilestones());
-      setFloorTitle('GROUND FLOOR');
+      setFloors([
+        {
+          id: 'floor_1',
+          floor_title: 'GROUND FLOOR',
+          milestones: getBlankDefaultMilestones()
+        }
+      ]);
     }
   };
 
@@ -160,13 +266,21 @@ export default function PaymentBreakupModule() {
   const handleSaveBreakup = async () => {
     setIsSaving(true);
     try {
+      const formattedFloors = floors.map((f, fIdx) => ({
+        id: f.id || `floor_${fIdx + 1}`,
+        floor_title: f.floor_title || `FLOOR ${fIdx + 1}`,
+        total_amount: (f.milestones || []).reduce((acc, m) => acc + (Number(m.amount) || 0), 0),
+        milestones: f.milestones || []
+      }));
+
       const payload = {
         id: selectedSite,
         site_name: selectedSite,
-        floor_title: floorTitle,
-        milestones: milestones,
+        floor_title: floors[0]?.floor_title || 'GROUND FLOOR',
+        floors: formattedFloors,
+        milestones: allMilestones,
         total_amount: totalAmount,
-        milestones_count: milestones.length,
+        milestones_count: allMilestones.length,
         scheduled_count: scheduledCount
       };
 
@@ -193,12 +307,23 @@ export default function PaymentBreakupModule() {
 
   // Export to Excel
   const handleExportXLS = () => {
-    const exportRows = milestones.map(m => ({
-      sno: m.sno,
-      stage_name: m.stage_name,
-      amount: m.amount !== "" ? Number(m.amount) : 0,
-      work_schedule: m.work_schedule || "Pending Schedule"
-    }));
+    const exportRows = [];
+    floors.forEach((f) => {
+      exportRows.push({
+        sno: '',
+        stage_name: `[ ${f.floor_title} ]`,
+        amount: '',
+        work_schedule: ''
+      });
+      (f.milestones || []).forEach(m => {
+        exportRows.push({
+          sno: m.sno,
+          stage_name: m.stage_name,
+          amount: m.amount !== "" ? Number(m.amount) : 0,
+          work_schedule: m.work_schedule || "Pending Schedule"
+        });
+      });
+    });
 
     // Add total row
     exportRows.push({
@@ -214,12 +339,23 @@ export default function PaymentBreakupModule() {
 
   // Export to PDF
   const handleExportPDF = () => {
-    const exportRows = milestones.map(m => ({
-      sno: m.sno,
-      stage_name: m.stage_name,
-      amount: m.amount !== "" ? `₹ ${formatCurrency(m.amount)}` : "—",
-      work_schedule: m.work_schedule || "—"
-    }));
+    const exportRows = [];
+    floors.forEach((f) => {
+      exportRows.push({
+        sno: '',
+        stage_name: `── ${f.floor_title} ──`,
+        amount: '',
+        work_schedule: ''
+      });
+      (f.milestones || []).forEach(m => {
+        exportRows.push({
+          sno: m.sno,
+          stage_name: m.stage_name,
+          amount: m.amount !== "" ? `₹ ${formatCurrency(m.amount)}` : "—",
+          work_schedule: m.work_schedule || "—"
+        });
+      });
+    });
 
     exportRows.push({
       sno: '',
@@ -367,211 +503,249 @@ export default function PaymentBreakupModule() {
 
         <MetricCard
           title="TOTAL MILESTONES"
-          value={`${milestones.length} Stages`}
+          value={`${allMilestones.length} Stages`}
           icon={Layers}
-          subtext={`${filledAmountsCount} of ${milestones.length} stages have amounts entered`}
+          subtext={`${filledAmountsCount} of ${allMilestones.length} stages have amounts entered`}
         />
 
         <MetricCard
           title="SCHEDULED MILESTONES"
-          value={`${scheduledCount} / ${milestones.length}`}
+          value={`${scheduledCount} / ${allMilestones.length}`}
           icon={Calendar}
-          subtext={`${milestones.length - scheduledCount} milestones awaiting target dates`}
+          subtext={`${allMilestones.length - scheduledCount} milestones awaiting target dates`}
         />
       </div>
 
-      {/* Main Payment Breakup Table Card */}
-      <div className="breakup-table-card">
-        <div className="table-card-toolbar">
-          <div className="table-toolbar-left">
-            <div className="floor-title-edit-group">
-              <span className="toolbar-section-label">Section / Floor Header:</span>
-              <input
-                type="text"
-                className="floor-title-input"
-                value={floorTitle}
-                onChange={(e) => setFloorTitle(e.target.value.toUpperCase())}
-                placeholder="e.g. GROUND FLOOR"
-              />
+      {/* Main Payment Breakup Multi-Floor Section Cards */}
+      {floors.map((floor, floorIndex) => {
+        const floorTotal = (floor.milestones || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+        return (
+          <div key={floor.id || floorIndex} className="breakup-table-card" style={{ marginBottom: '1.5rem' }}>
+            <div className="table-card-toolbar">
+              <div className="table-toolbar-left">
+                <div className="floor-title-edit-group">
+                  <span className="toolbar-section-label">Section / Floor Header:</span>
+                  <input
+                    type="text"
+                    className="floor-title-input"
+                    value={floor.floor_title}
+                    onChange={(e) => handleFloorTitleChange(floorIndex, e.target.value.toUpperCase())}
+                    placeholder="e.g. GROUND FLOOR"
+                  />
+                </div>
+                <span className="blank-notice-pill">
+                  <Info size={13} /> Subtotal: ₹ {formatCurrency(floorTotal)}
+                </span>
+              </div>
+
+              <div className="table-toolbar-right">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => handleResetFloorToDefault(floorIndex)}
+                  title="Reset to 10 standard blank stages"
+                >
+                  <RotateCcw size={14} /> Reset Blank Template
+                </button>
+
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleAddFloor}
+                  title="Add another floor section below"
+                >
+                  <Layers size={14} /> Add Floor
+                </button>
+
+                {floors.length > 1 && (
+                  <button
+                    type="button"
+                    className="btn-delete-floor btn-sm"
+                    onClick={() => handleRemoveFloor(floorIndex)}
+                    title={`Delete ${floor.floor_title || `Floor #${floorIndex + 1}`}`}
+                  >
+                    <Trash2 size={14} /> Remove Floor
+                  </button>
+                )}
+              </div>
             </div>
-            <span className="blank-notice-pill">
-              <Info size={13} /> Default amounts & work schedules are blank for custom entry
-            </span>
-          </div>
 
-          <div className="table-toolbar-right">
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={handleResetToDefault}
-              title="Reset to 10 standard blank stages"
-            >
-              <RotateCcw size={14} /> Reset Blank Template
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={handleAddMilestone}
-              title="Add a new custom milestone row"
-            >
-              <Plus size={14} /> Add Stage
-            </button>
-          </div>
-        </div>
-
-        {/* The Exact Table matching Image 2 */}
-        <div className="breakup-table-wrapper">
-          <table className="breakup-table">
-            <thead>
-              <tr>
-                <th className="col-sno">S.NO</th>
-                <th className="col-desc">DESCRIPTION OF WORK</th>
-                <th className="col-amount">AMOUNT (₹)</th>
-                <th className="col-schedule">WORK SCHEDULE</th>
-                <th className="col-percent">% SHARE</th>
-                <th className="col-actions">ACTION</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Floor Group Subheader Row */}
-              <tr className="floor-group-row">
-                <td colSpan={6}>
-                  <div className="floor-group-cell">
-                    <strong>{floorTitle || 'GROUND FLOOR'}</strong>
-                  </div>
-                </td>
-              </tr>
-
-              {/* Milestone Rows */}
-              {milestones.map((m, index) => {
-                const amountNum = Number(m.amount) || 0;
-                const percentShare = totalAmount > 0 && amountNum > 0
-                  ? ((amountNum / totalAmount) * 100).toFixed(1)
-                  : null;
-
-                return (
-                  <tr key={m.id || index} className="milestone-row">
-                    {/* S.NO */}
-                    <td className="col-sno cell-center">
-                      <span className="sno-badge">{m.sno}</span>
-                    </td>
-
-                    {/* DESCRIPTION OF WORK */}
-                    <td className="col-desc">
-                      <input
-                        type="text"
-                        className="cell-input desc-input"
-                        value={m.stage_name}
-                        onChange={(e) => handleStageFieldChange(index, 'stage_name', e.target.value)}
-                        placeholder="Stage description..."
-                      />
-                    </td>
-
-                    {/* AMOUNT */}
-                    <td className="col-amount">
-                      <div className="amount-input-container">
-                        <span className="currency-prefix">₹</span>
-                        <input
-                          type="number"
-                          step="any"
-                          className="cell-input amount-input"
-                          value={m.amount}
-                          onChange={(e) => handleStageFieldChange(index, 'amount', e.target.value)}
-                          placeholder="0.00 (Blank)"
-                        />
+            {/* Breakup Table for this floor */}
+            <div className="breakup-table-wrapper">
+              <table className="breakup-table">
+                <thead>
+                  <tr>
+                    <th className="col-sno">S.NO</th>
+                    <th className="col-desc">DESCRIPTION OF WORK</th>
+                    <th className="col-amount">AMOUNT (₹)</th>
+                    <th className="col-schedule">WORK SCHEDULE</th>
+                    <th className="col-actions">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Floor Group Subheader Row */}
+                  <tr className="floor-group-row">
+                    <td colSpan={5}>
+                      <div className="floor-group-cell">
+                        <strong>{floor.floor_title || `FLOOR #${floorIndex + 1}`}</strong>
                       </div>
                     </td>
+                  </tr>
 
-                    {/* WORK SCHEDULE */}
-                    <td className="col-schedule">
-                      <div className="schedule-input-container">
-                        <Calendar size={14} className="schedule-calendar-icon" />
-                        <input
-                          type="text"
-                          className="cell-input schedule-input"
-                          value={m.work_schedule}
-                          onChange={(e) => handleStageFieldChange(index, 'work_schedule', e.target.value)}
-                          placeholder="e.g. 5-Mar-25 or date..."
-                        />
-                      </div>
-                    </td>
+                  {/* Milestone Rows */}
+                  {(floor.milestones || []).map((m, index) => {
+                    return (
+                      <tr key={m.id || index} className="milestone-row">
+                        {/* S.NO */}
+                        <td className="col-sno cell-center">
+                          <span className="sno-badge">{m.sno}</span>
+                        </td>
 
-                    {/* % SHARE */}
-                    <td className="col-percent cell-center">
-                      {percentShare ? (
-                        <span className="share-pill">{percentShare}%</span>
-                      ) : (
-                        <span className="share-empty">—</span>
-                      )}
-                    </td>
+                        {/* DESCRIPTION OF WORK */}
+                        <td className="col-desc">
+                          <input
+                            type="text"
+                            className="cell-input desc-input"
+                            value={m.stage_name}
+                            onChange={(e) => handleStageFieldChange(floorIndex, index, 'stage_name', e.target.value)}
+                            placeholder="Stage description..."
+                          />
+                        </td>
 
-                    {/* ACTIONS */}
-                    <td className="col-actions cell-center">
+                        {/* AMOUNT */}
+                        <td className="col-amount">
+                          <div className="amount-input-container">
+                            <span className="currency-prefix">₹</span>
+                            <input
+                              type="number"
+                              step="any"
+                              className="cell-input amount-input"
+                              value={m.amount}
+                              onChange={(e) => handleStageFieldChange(floorIndex, index, 'amount', e.target.value)}
+                              placeholder="0.00 (Blank)"
+                            />
+                          </div>
+                        </td>
+
+                        {/* WORK SCHEDULE */}
+                        <td className="col-schedule">
+                          <div className="schedule-input-container">
+                            <Calendar size={14} className="schedule-calendar-icon" />
+                            <input
+                              type="text"
+                              className="cell-input schedule-input"
+                              value={m.work_schedule}
+                              onChange={(e) => handleStageFieldChange(floorIndex, index, 'work_schedule', e.target.value)}
+                              placeholder="Enter month (e.g. Month 1)..."
+                            />
+                          </div>
+                        </td>
+
+                        {/* ACTIONS */}
+                        <td className="col-actions cell-center">
+                          <button
+                            type="button"
+                            className="delete-row-btn"
+                            onClick={() => handleDeleteMilestone(floorIndex, index)}
+                            title="Remove milestone"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* Last row of the form: Add Row */}
+                  <tr className="table-add-row-tr">
+                    <td colSpan={5} style={{ padding: '8px 14px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'left' }}>
                       <button
                         type="button"
-                        className="delete-row-btn"
-                        onClick={() => handleDeleteMilestone(index)}
-                        title="Remove milestone"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleAddMilestone(floorIndex)}
+                        title="Add a new row to this floor"
                       >
-                        <Trash2 size={15} />
+                        <Plus size={14} /> Add Row
                       </button>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
+                </tbody>
 
-            {/* Total Footer Row */}
-            <tfoot>
-              <tr className="total-footer-row">
-                <td className="cell-center"></td>
-                <td className="total-label-cell">
-                  <strong>TOTAL</strong>
-                </td>
-                <td className="total-amount-cell">
-                  <strong>₹ {formatCurrency(totalAmount)}</strong>
-                </td>
-                <td className="total-schedule-cell">
-                  <span className="schedule-summary-badge">
-                    {scheduledCount} of {milestones.length} Scheduled
-                  </span>
-                </td>
-                <td className="total-percent-cell cell-center">
-                  <strong>{totalAmount > 0 ? '100%' : '0%'}</strong>
-                </td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
+                {/* Subtotal Footer Row */}
+                <tfoot>
+                  <tr className="total-footer-row">
+                    <td className="cell-center"></td>
+                    <td className="total-label-cell">
+                      <strong>SUBTOTAL: {floor.floor_title || `FLOOR #${floorIndex + 1}`}</strong>
+                    </td>
+                    <td className="total-amount-cell">
+                      <strong>₹ {formatCurrency(floorTotal)}</strong>
+                    </td>
+                    <td className="total-schedule-cell">
+                      <span className="schedule-summary-badge">
+                        {(floor.milestones || []).filter(m => m.work_schedule && String(m.work_schedule).trim() !== '').length} of {(floor.milestones || []).length} Scheduled
+                      </span>
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Add Another Floor Large Button */}
+      <button
+        type="button"
+        className="btn-add-floor-breakup-large"
+        onClick={handleAddFloor}
+      >
+        <Plus size={18} />
+        <span>
+          + Add Floor / Section (e.g.{' '}
+          {floors.length < DEFAULT_FLOOR_TITLES.length
+            ? DEFAULT_FLOOR_TITLES[floors.length]
+            : `Floor ${floors.length + 1}`}
+          )
+        </span>
+      </button>
+
+      {/* Grand Total Summary & Actions Card */}
+      <div className="grand-total-summary-card">
+        <div className="grand-total-col">
+          <span className="col-label">Configured Floors</span>
+          <span className="col-value">{floors.length} {floors.length === 1 ? 'Floor' : 'Floors'}</span>
         </div>
-
-        {/* Footer Actions & Save Bar */}
-        <div className="breakup-card-footer">
-          <div className="footer-info">
-            <span>Tip: Enter amounts and work schedule dates. All calculations update automatically. Click "Save Breakup" to save your changes to the cloud.</span>
-          </div>
-          <div className="footer-actions">
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={handleResetToDefault}
-            >
-              Reset
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary save-btn-footer"
-              onClick={handleSaveBreakup}
-              disabled={isSaving}
-            >
-              <Save size={16} /> {isSaving ? 'Saving...' : 'Save Payment Breakup'}
-            </button>
-          </div>
+        <div className="grand-total-col">
+          <span className="col-label">Total Milestones</span>
+          <span className="col-value">{allMilestones.length} Stages ({scheduledCount} Scheduled)</span>
+        </div>
+        <div className="grand-total-col highlight">
+          <span className="col-label">Grand Total Contract Value</span>
+          <span className="col-value">₹ {formatCurrency(totalAmount)}</span>
+        </div>
+        <div className="header-action-group">
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={handleResetToDefault}
+          >
+            Reset All
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary save-btn"
+            onClick={handleSaveBreakup}
+            disabled={isSaving}
+          >
+            <Save size={16} /> {isSaving ? 'Saving...' : 'Save Payment Breakup'}
+          </button>
         </div>
       </div>
 
-      {/* Official Document Print / Preview Modal (Matches Image 2) */}
+      {/* Official Document Print / Preview Modal */}
       <Modal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
@@ -597,7 +771,7 @@ export default function PaymentBreakupModule() {
             </div>
           </div>
 
-          {/* Table matching Image 2 */}
+          {/* Multi-floor table matching Image 2 */}
           <table className="official-print-table">
             <thead>
               <tr>
@@ -608,28 +782,32 @@ export default function PaymentBreakupModule() {
               </tr>
             </thead>
             <tbody>
-              {/* Floor subheader */}
-              <tr className="doc-floor-header-row">
-                <td></td>
-                <td colSpan={3}>
-                  <strong>{floorTitle || 'GROUND FLOOR'}</strong>
-                </td>
-              </tr>
+              {floors.map((floor) => (
+                <React.Fragment key={floor.id}>
+                  {/* Floor subheader */}
+                  <tr className="doc-floor-header-row">
+                    <td></td>
+                    <td colSpan={3}>
+                      <strong>{floor.floor_title || 'GROUND FLOOR'}</strong>
+                    </td>
+                  </tr>
 
-              {/* Rows */}
-              {milestones.map((m) => (
-                <tr key={m.id || m.sno}>
-                  <td style={{ textAlign: 'center' }}>{m.sno}</td>
-                  <td>{m.stage_name}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
-                    {m.amount !== "" && !isNaN(Number(m.amount))
-                      ? Number(m.amount).toFixed(2)
-                      : "—"}
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
-                    {m.work_schedule || "—"}
-                  </td>
-                </tr>
+                  {/* Rows */}
+                  {(floor.milestones || []).map((m) => (
+                    <tr key={m.id || m.sno}>
+                      <td style={{ textAlign: 'center' }}>{m.sno}</td>
+                      <td>{m.stage_name}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
+                        {m.amount !== "" && !isNaN(Number(m.amount))
+                          ? Number(m.amount).toFixed(2)
+                          : "—"}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {m.work_schedule || "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </React.Fragment>
               ))}
 
               {/* Total Row */}

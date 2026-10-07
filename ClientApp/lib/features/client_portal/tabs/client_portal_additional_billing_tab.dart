@@ -29,8 +29,16 @@ class ClientPortalAdditionalBillingTab extends StatelessWidget {
             final raw = doc.data();
             if (raw is Map) {
               final data = Map<String, dynamic>.from(raw);
-              final sName = data['site_name']?.toString() ?? '';
-              if (sName.toLowerCase() == siteName.toLowerCase()) {
+              final sName = (data['site_name'] ?? data['siteName'] ?? data['site'] ?? '').toString().trim().toLowerCase();
+              final sId = (data['site_id'] ?? data['siteId'] ?? '').toString().trim().toLowerCase();
+              final target = siteName.trim().toLowerCase();
+
+              final isMatch = sName == target ||
+                  (sId.isNotEmpty && sId == target) ||
+                  (target.isNotEmpty && sName.contains(target)) ||
+                  (sName.isNotEmpty && target.contains(sName));
+
+              if (isMatch) {
                 siteBills.add({
                   ...data,
                   'id': doc.id,
@@ -255,10 +263,10 @@ class ClientPortalAdditionalBillingTab extends StatelessWidget {
   }
 
   Widget _buildInvoiceCard(Map<String, dynamic> bill) {
-    final billId = bill['bill_id']?.toString() ?? 'ADD-BILL';
-    final billingDate = bill['billing_date']?.toString() ?? 'N/A';
+    final billId = bill['bill_id']?.toString() ?? bill['id']?.toString() ?? 'ADD-BILL';
+    final billingDate = bill['bill_date']?.toString() ?? bill['billing_date']?.toString() ?? bill['date']?.toString() ?? 'N/A';
     final category = bill['category']?.toString() ?? 'Extra Scope';
-    final description = bill['work_description']?.toString() ?? 'Additional work scope';
+    final description = bill['work_description']?.toString() ?? bill['description']?.toString() ?? 'Additional work scope';
     final quotedAmount = bill['quoted_amount'] ?? bill['amount'] ?? 0;
     final expenseAmount = bill['expense_amount'] ?? 0;
     final amountInRs = bill['amount'] ?? bill['quoted_amount'] ?? 0;

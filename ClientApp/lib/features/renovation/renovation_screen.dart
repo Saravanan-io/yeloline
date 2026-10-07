@@ -16,6 +16,7 @@ class _RenovationScreenState extends State<RenovationScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
   bool _isSubmitting = false;
+  int _selectedVanImage = 0;
 
   @override
   void dispose() {
@@ -430,58 +431,172 @@ class _RenovationScreenState extends State<RenovationScreen> {
   }
 
   Widget _buildRenovationVanHero() {
+    final imagePaths = ['assets/renovan_side.png', 'assets/renovan_front.png'];
+    final imageLabels = ['Side View', 'Front View'];
+
     return Container(
-      height: 200,
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-          image: NetworkImage(
-            'https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=1000&auto=format&fit=crop',
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primaryYellow, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          fit: BoxFit.cover,
-        ),
+        ],
       ),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.darkCharcoal.withValues(alpha: 0.92),
-              AppColors.darkCharcoal.withValues(alpha: 0.60),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // RenoVan Real Image Showcase
+          Stack(
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Container(
+                  key: ValueKey<int>(_selectedVanImage),
+                  height: 230,
+                  width: double.infinity,
+                  color: const Color(0xFFE5E7EB),
+                  child: Image.asset(
+                    imagePaths[_selectedVanImage],
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Image.asset(
+                        'assets/header.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: AppColors.darkCharcoal,
+                            child: const Center(
+                              child: Icon(Icons.directions_bus_rounded, size: 60, color: AppColors.primaryYellow),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 12,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.darkCharcoal,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.primaryYellow),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.directions_bus_rounded, color: AppColors.primaryYellow, size: 14),
+                      SizedBox(width: 6),
+                      Text(
+                        'RENOVAN • HOME ON WHEELS',
+                        style: TextStyle(
+                          color: AppColors.primaryYellow,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // View Switcher Overlay Buttons (Side View vs Front View)
+              Positioned(
+                bottom: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppColors.darkCharcoal.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(2, (idx) {
+                      final isSelected = _selectedVanImage == idx;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedVanImage = idx),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: isSelected ? AppColors.primaryYellow : Colors.transparent,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            imageLabels[idx],
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? AppColors.darkCharcoal : Colors.white70,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ),
             ],
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              'YELOLINE RENOVATION VAN',
-              style: TextStyle(
-                color: AppColors.primaryYellow,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.2,
-              ),
+
+          // Content & Slogan Details
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: AppColors.darkCharcoal,
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'One Call. One Van. RenoVan',
+                      style: TextStyle(
+                        color: AppColors.primaryYellow,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'TN 42 U 1659',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'From Leak to Light, We make it Right',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Doorstep maintenance & renovation: Electrical, Plumbing, Masonry Work & General Repairs.',
+                  style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.3),
+                ),
+              ],
             ),
-            SizedBox(height: 4),
-            Text(
-              'Renovation Made Easy',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'Our Renovation Van brings expertise to your doorstep. Book a visit and let our specialists handle the rest.',
-              style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w400, height: 1.3),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -30,22 +30,24 @@ export default function MonthlyBillingModule() {
   } = useApp();
 
   const siteList = useMemo(() => {
-    return Array.from(new Set([
-      ...(sites || []).map(s => s.site_name || s.name || s.title).filter(Boolean),
-      "Skyline Residency",
-      "Modern Minimalist Villa - Perundurai",
-      "Grand Emerald Commercial Hub",
-      "Heritage Home Renovation"
-    ]));
+    return Array.from(new Set(
+      (sites || []).map(s => s.site_name || s.name || s.title).filter(Boolean)
+    ));
   }, [sites]);
 
-  const [selectedSite, setSelectedSite] = useState(() => siteList[0] || 'Skyline Residency');
+  const [selectedSite, setSelectedSite] = useState(() => siteList[0] || '');
 
-  // Header meta information from Image 2
-  const [clientTitle, setClientTitle] = useState('திரு. நகுலன் குடும்பத்தார் இல்லம், மூவலூர்.');
-  const [statementSubtitle, setStatementSubtitle] = useState('மதிப்பீடு');
-  const [billDate, setBillDate] = useState('14.6.2026');
-  const [settlementDate, setSettlementDate] = useState('25.8.2026');
+  useEffect(() => {
+    if (siteList.length > 0 && (!selectedSite || !siteList.includes(selectedSite))) {
+      setSelectedSite(siteList[0]);
+    }
+  }, [siteList, selectedSite]);
+
+  // Header meta information
+  const [clientTitle, setClientTitle] = useState('');
+  const [statementSubtitle, setStatementSubtitle] = useState('');
+  const [billDate, setBillDate] = useState('');
+  const [settlementDate, setSettlementDate] = useState('');
 
   // Table 1: Area Valuation Rows
   const [areaItems, setAreaItems] = useState([]);
@@ -54,10 +56,10 @@ export default function MonthlyBillingModule() {
   const [amenityItems, setAmenityItems] = useState([]);
 
   // Financial reconciliation fields
-  const [additionalWorkBill, setAdditionalWorkBill] = useState(2416700);
+  const [additionalWorkBill, setAdditionalWorkBill] = useState(0);
   const [receivedAdditional, setReceivedAdditional] = useState(0);
-  const [receivedQuoted, setReceivedQuoted] = useState(6505000);
-  const [netBalanceManual, setNetBalanceManual] = useState(260000);
+  const [receivedQuoted, setReceivedQuoted] = useState(0);
+  const [netBalanceManual, setNetBalanceManual] = useState(0);
 
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -67,22 +69,13 @@ export default function MonthlyBillingModule() {
   const getInitialAreaItems = useCallback(() => {
     return (DEFAULT_MONTHLY_BILLING_AREAS && DEFAULT_MONTHLY_BILLING_AREAS.length > 0)
       ? DEFAULT_MONTHLY_BILLING_AREAS
-      : [
-          { sno: 1, description: "தரைத்தளம் (Ground Floor)", area_sqft: 1444, rate_per_sqft: 2225, amount: 3212900 },
-          { sno: 2, description: "படிக்கட்டு ஏரியா (Staircase Area)", area_sqft: 74, rate_per_sqft: 1900, amount: 140600 },
-          { sno: 3, description: "போர்டிகோ / பால்கனி ஏரியா (Portico / Balcony Area)", area_sqft: 204, rate_per_sqft: 1800, amount: 367200 },
-          { sno: 4, description: "ஹெட்ரூம் ஏரியா (Headroom Extended)", area_sqft: 280, rate_per_sqft: 1800, amount: 504000 }
-        ];
+      : [];
   }, [DEFAULT_MONTHLY_BILLING_AREAS]);
 
   const getInitialAmenityItems = useCallback(() => {
     return (DEFAULT_MONTHLY_BILLING_AMENITIES && DEFAULT_MONTHLY_BILLING_AMENITIES.length > 0)
       ? DEFAULT_MONTHLY_BILLING_AMENITIES
-      : [
-          { sno: 5, description: "நிலத்தொட்டி (5000 லிட்டர் / Sump Tank)", amount: 75000 },
-          { sno: 6, description: "செப்டிக் டேங்க் (3000 லிட்டர் / Septic Tank)", amount: 45000 },
-          { sno: 7, description: "Sintex tank (1500 லிட்டர் / Overhead Tank)", amount: 15000 }
-        ];
+      : [];
   }, [DEFAULT_MONTHLY_BILLING_AMENITIES]);
 
   // Load existing billing for selected site or set default
@@ -91,27 +84,27 @@ export default function MonthlyBillingModule() {
     const existing = monthlyBillings.find(b => b.site_name === selectedSite || b.id === selectedSite);
 
     if (existing) {
-      setClientTitle(existing.client_title || 'திரு. நகுலன் குடும்பத்தார் இல்லம், மூவலூர்.');
-      setStatementSubtitle(existing.statement_subtitle || 'மதிப்பீடு');
-      setBillDate(existing.bill_date || '14.6.2026');
-      setSettlementDate(existing.settlement_date || '25.8.2026');
+      setClientTitle(existing.client_title || '');
+      setStatementSubtitle(existing.statement_subtitle || '');
+      setBillDate(existing.bill_date || '');
+      setSettlementDate(existing.settlement_date || '');
       if (Array.isArray(existing.area_items)) setAreaItems(existing.area_items);
       if (Array.isArray(existing.amenity_items)) setAmenityItems(existing.amenity_items);
-      setAdditionalWorkBill(Number(existing.additional_work_bill ?? 2416700));
+      setAdditionalWorkBill(Number(existing.additional_work_bill ?? 0));
       setReceivedAdditional(Number(existing.received_additional ?? 0));
-      setReceivedQuoted(Number(existing.received_quoted ?? 6505000));
-      setNetBalanceManual(Number(existing.net_balance ?? 260000));
+      setReceivedQuoted(Number(existing.received_quoted ?? 0));
+      setNetBalanceManual(Number(existing.net_balance ?? 0));
     } else {
-      setClientTitle('திரு. நகுலன் குடும்பத்தார் இல்லம், மூவலூர்.');
-      setStatementSubtitle('மதிப்பீடு');
-      setBillDate('14.6.2026');
-      setSettlementDate('25.8.2026');
+      setClientTitle('');
+      setStatementSubtitle('');
+      setBillDate('');
+      setSettlementDate('');
       setAreaItems(getInitialAreaItems());
       setAmenityItems(getInitialAmenityItems());
-      setAdditionalWorkBill(2416700);
+      setAdditionalWorkBill(0);
       setReceivedAdditional(0);
-      setReceivedQuoted(6505000);
-      setNetBalanceManual(260000);
+      setReceivedQuoted(0);
+      setNetBalanceManual(0);
     }
   }, [selectedSite, monthlyBillings, getInitialAreaItems, getInitialAmenityItems]);
 
@@ -561,7 +554,7 @@ export default function MonthlyBillingModule() {
               className="client-title-input"
               value={clientTitle}
               onChange={(e) => setClientTitle(e.target.value)}
-              placeholder="e.g. திரு. நகுலன் குடும்பத்தார் இல்லம், மூவலூர்."
+              placeholder=""
             />
           </div>
           <div className="client-subtitle-edit-wrap">

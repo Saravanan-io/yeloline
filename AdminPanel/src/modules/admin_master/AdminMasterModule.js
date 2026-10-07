@@ -160,6 +160,7 @@ export default function AdminMasterModule() {
     category: 'lead_stage',
     label: '',
     code: '',
+    price: '',
     color: '#3B82F6',
     status: 'Active',
     description: ''
@@ -233,6 +234,7 @@ export default function AdminMasterModule() {
       category: defaultCategoryKey || categoryList[0].key,
       label: '',
       code: '',
+      price: '',
       color: PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)],
       status: 'Active',
       description: ''
@@ -246,6 +248,7 @@ export default function AdminMasterModule() {
       category: option.category || categoryList[0].key,
       label: option.label || '',
       code: option.code || '',
+      price: option.price !== undefined && option.price !== null ? option.price : '',
       color: option.color || '#3B82F6',
       status: option.status || 'Active',
       description: option.description || ''
@@ -299,7 +302,14 @@ export default function AdminMasterModule() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <div className="option-color-dot" style={{ backgroundColor: row.color || '#3B82F6' }} />
           <div>
-            <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{row.label}</div>
+            <div style={{ fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>{row.label}</span>
+              {row.price !== undefined && row.price !== null && row.price !== '' && (
+                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#D97706', background: '#FEF3C7', padding: '1px 7px', borderRadius: '6px' }}>
+                  ₹{Number(row.price).toLocaleString('en-IN')}
+                </span>
+              )}
+            </div>
             {row.code && (
               <div style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
                 {row.code}
@@ -584,9 +594,14 @@ export default function AdminMasterModule() {
                     <div className="option-left-info">
                       <div className="option-color-dot" style={{ backgroundColor: option.color || '#3B82F6' }} />
                       <div className="option-main-details">
-                        <div className="option-title-row">
+                        <div className="option-title-row" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <span className="option-label-text">{option.label}</span>
                           {option.code && <span className="option-code-tag">{option.code}</span>}
+                          {option.price !== undefined && option.price !== null && option.price !== '' && (
+                            <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#D97706', background: '#FEF3C7', border: '1px solid #FDE68A', padding: '2px 8px', borderRadius: '6px' }}>
+                              ₹{Number(option.price).toLocaleString('en-IN')}
+                            </span>
+                          )}
                         </div>
                         {option.description && (
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -673,16 +688,29 @@ export default function AdminMasterModule() {
               </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label" style={{ fontWeight: '600', fontSize: '0.85rem' }}>Display Status</label>
-              <select
-                className="form-control"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              >
-                <option value="Active">Active (Visible in Dropdowns)</option>
-                <option value="Inactive">Inactive (Disabled)</option>
-              </select>
+            <div className="user-form-grid">
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.85rem' }}>Price (₹) (Optional)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  placeholder="e.g. 450"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.85rem' }}>Display Status</label>
+                <select
+                  className="form-control"
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                >
+                  <option value="Active">Active (Visible in Dropdowns)</option>
+                  <option value="Inactive">Inactive (Disabled)</option>
+                </select>
+              </div>
             </div>
 
             <div className="form-group">

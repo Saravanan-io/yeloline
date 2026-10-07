@@ -180,10 +180,10 @@ export async function addFirestoreDoc(collectionName, data, customId = null) {
 export async function updateFirestoreDoc(collectionName, docId, updates) {
   try {
     const docRef = doc(db, collectionName, String(docId));
-    await updateDoc(docRef, {
+    await setDoc(docRef, {
       ...updates,
       updated_at: new Date().toISOString()
-    });
+    }, { merge: true });
   } catch (error) {
     console.error(`[Firebase] Error updating doc in ${collectionName}:`, error);
     throw error;

@@ -99,6 +99,8 @@ class ClientPortalPaymentBreakupTab extends StatelessWidget {
     final floorTitle = data['floor_title']?.toString() ?? 'GROUND FLOOR';
     final totalAmount = data['total_amount'] ?? 0;
     final milestones = (data['milestones'] as List<dynamic>?) ?? [];
+    final floorsRaw = data['floors'] as List<dynamic>?;
+    final hasMultipleFloors = floorsRaw != null && floorsRaw.isNotEmpty;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -136,7 +138,9 @@ class ClientPortalPaymentBreakupTab extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        floorTitle.toUpperCase(),
+                        hasMultipleFloors
+                            ? '${floorsRaw.length} FLOORS'
+                            : floorTitle.toUpperCase(),
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w900,
@@ -206,14 +210,80 @@ class ClientPortalPaymentBreakupTab extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // List of Milestones
-          ...milestones.asMap().entries.map((entry) {
-            final idx = entry.key;
-            final m = (entry.value is Map)
-                ? Map<String, dynamic>.from(entry.value as Map)
-                : <String, dynamic>{};
-            return _buildMilestoneTile(idx + 1, m, isLast: idx == milestones.length - 1);
-          }),
+          // Multi-floor layout
+          if (hasMultipleFloors) ...[
+            ...floorsRaw.asMap().entries.map((entry) {
+              final fIdx = entry.key;
+              final floorMap = (entry.value is Map)
+                  ? Map<String, dynamic>.from(entry.value as Map)
+                  : <String, dynamic>{};
+              final fTitle = floorMap['floor_title']?.toString() ?? 'FLOOR #${fIdx + 1}';
+              final fTotal = floorMap['total_amount'] ?? 0;
+              final fMilestones = (floorMap['milestones'] as List<dynamic>?) ?? [];
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.layers_rounded, size: 16, color: Color(0xFF3B82F6)),
+                              const SizedBox(width: 8),
+                              Text(
+                                fTitle.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.darkCharcoal,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'Subtotal: ₹ ${CurrencyFormatter.format(fTotal)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1E3A8A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ...fMilestones.asMap().entries.map((mEntry) {
+                      final mIdx = mEntry.key;
+                      final m = (mEntry.value is Map)
+                          ? Map<String, dynamic>.from(mEntry.value as Map)
+                          : <String, dynamic>{};
+                      return _buildMilestoneTile(mIdx + 1, m, isLast: mIdx == fMilestones.length - 1);
+                    }),
+                  ],
+                ),
+              );
+            }),
+          ] else ...[
+            // Single floor fallback
+            ...milestones.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final m = (entry.value is Map)
+                  ? Map<String, dynamic>.from(entry.value as Map)
+                  : <String, dynamic>{};
+              return _buildMilestoneTile(idx + 1, m, isLast: idx == milestones.length - 1);
+            }),
+          ],
 
           const SizedBox(height: 24),
         ],

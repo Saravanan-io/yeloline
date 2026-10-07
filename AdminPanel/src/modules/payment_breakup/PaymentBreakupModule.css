@@ -226,6 +226,91 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.btn-delete-floor {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #FEF2F2 !important;
+  color: #DC2626 !important;
+  border: 1px solid #FECACA !important;
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+  padding: 6px 10px !important;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-delete-floor:hover {
+  background: #FEE2E2 !important;
+  border-color: #F87171 !important;
+  color: #B91C1C !important;
+}
+
+.btn-add-floor-breakup-large {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 20px;
+  border: 2px dashed #CBD5E1;
+  border-radius: var(--radius-md);
+  background: #F8FAFC;
+  color: #1E293B;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.btn-add-floor-breakup-large:hover {
+  background: #EFF6FF;
+  border-color: #3B82F6;
+  color: #1D4ED8;
+  transform: translateY(-1px);
+}
+
+.grand-total-summary-card {
+  background: var(--light-card);
+  border: 1px solid var(--light-border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-sm);
+}
+
+.grand-total-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.grand-total-col .col-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.grand-total-col .col-value {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--text-primary);
+}
+
+.grand-total-col.highlight .col-value {
+  color: #1E3A8A;
+  font-size: 1.5rem;
 }
 
 /* The Breakup Table */

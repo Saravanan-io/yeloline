@@ -13,6 +13,7 @@ import UserMasterModule from './modules/user_master/UserMasterModule';
 import AdminMasterModule from './modules/admin_master/AdminMasterModule';
 import ContactEnquiryModule from './modules/contact_enquiry/ContactEnquiryModule';
 import CreateSiteModule from './modules/create_site/CreateSiteModule';
+import NewSiteModule from './modules/new_site/NewSiteModule';
 import AdditionalBillingModule from './modules/additional_billing/AdditionalBillingModule';
 import PaymentBreakupModule from './modules/payment_breakup/PaymentBreakupModule';
 import MonthlyBillingModule from './modules/monthly_billing/MonthlyBillingModule';
@@ -39,6 +40,8 @@ function MainRouter() {
         return <LeadManagementModule />;
       case 'project_showcase':
         return <PortfolioProjectModule />;
+      case 'new_site':
+        return <NewSiteModule />;
       case 'create_site':
         return <CreateSiteModule />;
       case 'additional_billing':

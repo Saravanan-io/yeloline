@@ -403,76 +403,23 @@ class _AdminMainLayoutState extends State<AdminMainLayout> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            _buildNotificationTile(
-              icon: Icons.shopping_cart_rounded,
-              iconBg: AppColors.lightYellowBg,
-              iconColor: AppColors.darkYellow,
-              title: 'New Material Purchase Request',
-              subtitle: 'Ultratech Cement 53 Grade - Skyline Residency',
-              time: '10 mins ago',
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.notifications_none_rounded, size: 40, color: Colors.grey.shade400),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No new notifications',
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
-            _buildNotificationTile(
-              icon: Icons.payments_rounded,
-              iconBg: Colors.green.shade50,
-              iconColor: Colors.green.shade700,
-              title: 'Payment Received',
-              subtitle: '₹2,15,000 collected from Rahul Patel',
-              time: '1 hour ago',
-            ),
-            const SizedBox(height: 8),
-            _buildNotificationTile(
-              icon: Icons.groups_rounded,
-              iconBg: Colors.blue.shade50,
-              iconColor: Colors.blue.shade700,
-              title: 'Labour Expense Updated',
-              subtitle: 'Masonry department daily payout logged',
-              time: '3 hours ago',
-            ),
-            const SizedBox(height: 16),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildNotificationTile({
-    required IconData icon,
-    required Color iconBg,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required String time,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.cardWhite,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                const SizedBox(height: 2),
-                Text(subtitle, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(time, style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
-        ],
       ),
     );
   }

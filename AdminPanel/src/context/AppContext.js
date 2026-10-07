@@ -705,10 +705,10 @@ export const AppProvider = ({ children }) => {
 
     const newPO = {
       purchase_id: purchaseData.purchase_id || `PO-${301 + purchases.length}`,
-      site_name: purchaseData.site_name || "Skyline Residency",
-      department: purchaseData.department || "Masonry",
-      vendor_name: purchaseData.vendor_name || "Shree Ganesh Bricks",
-      material_category: purchaseData.material_category || "Red Bricks",
+      site_name: purchaseData.site_name || "",
+      department: purchaseData.department || "",
+      vendor_name: purchaseData.vendor_name || "",
+      material_category: purchaseData.material_category || "",
       order_date: purchaseData.order_date || new Date().toISOString().split('T')[0],
       total_amount: total,
       amount_paid: paid,
@@ -794,9 +794,15 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateAdditionalBilling = async (bill_id, updatedData) => {
-    setAdditionalBillings(prev => prev.map(b => (b.bill_id === bill_id || b.id === bill_id) ? { ...b, ...updatedData } : b));
+    const existing = additionalBillings.find(b => b.bill_id === bill_id || b.id === bill_id);
+    const targetDocId = existing?.id || bill_id;
+    setAdditionalBillings(prev => prev.map(b => (b.bill_id === bill_id || b.id === bill_id || b.bill_id === targetDocId || b.id === targetDocId) ? { ...b, ...updatedData, id: targetDocId } : b));
+    addNotification(`Updated Additional Work for ${updatedData.site_name || existing?.site_name || 'Client'}`);
     try {
-      await updateFirestoreDoc(COLLECTIONS.ADDITIONAL_BILLING, bill_id, updatedData);
+      await updateFirestoreDoc(COLLECTIONS.ADDITIONAL_BILLING, targetDocId, updatedData);
+      if (existing?.bill_id && existing.bill_id !== targetDocId) {
+        await updateFirestoreDoc(COLLECTIONS.ADDITIONAL_BILLING, existing.bill_id, updatedData);
+      }
     } catch (e) {
       console.error('Firebase updateAdditionalBilling error:', e);
     }

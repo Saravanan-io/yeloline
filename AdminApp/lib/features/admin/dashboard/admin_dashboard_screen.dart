@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/constants/app_colors.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -9,222 +10,311 @@ class AdminDashboardScreen extends StatelessWidget {
     required this.onNavigateTab,
   });
 
+  String _formatCurrency(num value) {
+    final intVal = value.toInt();
+    final str = intVal.abs().toString();
+    if (str.length <= 3) {
+      return '${value < 0 ? '-' : ''}₹$str';
+    }
+    final last3 = str.substring(str.length - 3);
+    final rest = str.substring(0, str.length - 3);
+    final parts = <String>[];
+    var pos = rest.length;
+    while (pos > 0) {
+      final start = (pos - 2) < 0 ? 0 : pos - 2;
+      parts.insert(0, rest.substring(start, pos));
+      pos -= 2;
+    }
+    return '${value < 0 ? '-' : ''}₹${parts.join(',')},$last3';
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Welcome Greeting
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Financial Overview',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade600,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Company Dashboard',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryYellow.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.primaryYellow),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.check_circle_rounded, color: AppColors.darkCharcoal, size: 14),
-                    SizedBox(width: 4),
-                    Text(
-                      'Live Sites (3)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.darkCharcoal,
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('sites').snapshots(),
+      builder: (context, sitesSnap) {
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('payments').snapshots(),
+          builder: (context, paymentsSnap) {
+            return StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('expenses').snapshots(),
+              builder: (context, expensesSnap) {
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('purchases').snapshots(),
+                  builder: (context, purchasesSnap) {
+                    final sitesDocs = sitesSnap.data?.docs ?? [];
+                    final paymentsDocs = paymentsSnap.data?.docs ?? [];
+                    final expensesDocs = expensesSnap.data?.docs ?? [];
+                    final purchasesDocs = purchasesSnap.data?.docs ?? [];
+
+                    final liveSitesCount = sitesDocs.length;
+
+                    final totalProjectValue = sitesDocs.fold<double>(0.0, (acc, d) {
+                      final raw = d.data();
+                      if (raw is Map) {
+                        return acc + (num.tryParse(raw['estimated_budget']?.toString() ?? '0') ?? 0).toDouble();
+                      }
+                      return acc;
+                    });
+
+                    final totalReceived = paymentsDocs.fold<double>(0.0, (acc, d) {
+                      final raw = d.data();
+                      if (raw is Map) {
+                        return acc + (num.tryParse(raw['amount_received']?.toString() ?? '0') ?? 0).toDouble();
+                      }
+                      return acc;
+                    });
+
+                    final totalSpent = expensesDocs.fold<double>(0.0, (acc, d) {
+                      final raw = d.data();
+                      if (raw is Map) {
+                        return acc + (num.tryParse(raw['amount']?.toString() ?? '0') ?? 0).toDouble();
+                      }
+                      return acc;
+                    });
+
+                    final remainingReceivable = (totalProjectValue - totalReceived).clamp(0.0, double.infinity);
+
+                    final totalPurchase = purchasesDocs.fold<double>(0.0, (acc, d) {
+                      final raw = d.data();
+                      if (raw is Map) {
+                        return acc + (num.tryParse(raw['total_amount']?.toString() ?? '0') ?? 0).toDouble();
+                      }
+                      return acc;
+                    });
+
+                    final totalPaid = purchasesDocs.fold<double>(0.0, (acc, d) {
+                      final raw = d.data();
+                      if (raw is Map) {
+                        return acc + (num.tryParse(raw['amount_paid']?.toString() ?? '0') ?? 0).toDouble();
+                      }
+                      return acc;
+                    });
+
+                    final totalCredit = (totalPurchase - totalPaid).clamp(0.0, double.infinity);
+
+                    return SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header Welcome Greeting
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Financial Overview',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade600,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text(
+                                    'Company Dashboard',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textPrimary,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryYellow.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: AppColors.primaryYellow),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle_rounded, color: AppColors.darkCharcoal, size: 14),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Live Sites ($liveSitesCount)',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.darkCharcoal,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Top 4 Financial KPI Summary Grid
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 1.5,
+                            children: [
+                              _buildKpiCard(
+                                title: 'Total Project Value',
+                                amount: _formatCurrency(totalProjectValue),
+                                subtitle: 'Across $liveSitesCount Site${liveSitesCount == 1 ? '' : 's'}',
+                                icon: Icons.account_balance_wallet_rounded,
+                                color: AppColors.darkCharcoal,
+                                bgColor: AppColors.lightYellowBg,
+                              ),
+                              _buildKpiCard(
+                                title: 'Total Received',
+                                amount: _formatCurrency(totalReceived),
+                                subtitle: 'Client Collections',
+                                icon: Icons.savings_rounded,
+                                color: Colors.green.shade800,
+                                bgColor: Colors.green.shade50,
+                              ),
+                              _buildKpiCard(
+                                title: 'Total Spent',
+                                amount: _formatCurrency(totalSpent),
+                                subtitle: 'Labour & Materials',
+                                icon: Icons.payments_rounded,
+                                color: Colors.orange.shade800,
+                                bgColor: Colors.orange.shade50,
+                              ),
+                              _buildKpiCard(
+                                title: 'Remaining Receivable',
+                                amount: _formatCurrency(remainingReceivable),
+                                subtitle: 'Pending Collection',
+                                icon: Icons.pending_actions_rounded,
+                                color: Colors.blue.shade800,
+                                bgColor: Colors.blue.shade50,
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Quick Actions Grid
+                          const Text(
+                            'Quick Operations',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildActionButton(
+                                  context,
+                                  title: 'Expense',
+                                  icon: Icons.receipt_long_rounded,
+                                  color: AppColors.darkCharcoal,
+                                  onTap: () => onNavigateTab(2),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildActionButton(
+                                  context,
+                                  title: 'Purchase',
+                                  icon: Icons.shopping_cart_rounded,
+                                  color: AppColors.darkCharcoal,
+                                  onTap: () => onNavigateTab(3),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildActionButton(
+                                  context,
+                                  title: 'Payment',
+                                  icon: Icons.payments_rounded,
+                                  color: AppColors.darkCharcoal,
+                                  onTap: () => onNavigateTab(4),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Overall Purchase Data Section
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Overall Purchase data',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => onNavigateTab(3),
+                                child: const Text(
+                                  'View Purchase',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.darkYellow),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildPurchaseStatCard(
+                                  title: 'Total Purchase',
+                                  amount: _formatCurrency(totalPurchase),
+                                  icon: Icons.shopping_bag_rounded,
+                                  color: AppColors.darkCharcoal,
+                                  bgColor: AppColors.lightYellowBg,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildPurchaseStatCard(
+                                  title: 'Total Paid',
+                                  amount: _formatCurrency(totalPaid),
+                                  icon: Icons.check_circle_rounded,
+                                  color: Colors.green.shade800,
+                                  bgColor: Colors.green.shade50,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildPurchaseStatCard(
+                                  title: 'Total Credit',
+                                  amount: _formatCurrency(totalCredit),
+                                  icon: Icons.credit_score_rounded,
+                                  color: Colors.red.shade800,
+                                  bgColor: Colors.red.shade50,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 24),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // Top 4 Financial KPI Summary Grid
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
-            children: [
-              _buildKpiCard(
-                title: 'Total Project Value',
-                amount: '₹4,30,000',
-                subtitle: 'Across 3 Sites',
-                icon: Icons.account_balance_wallet_rounded,
-                color: AppColors.darkCharcoal,
-                bgColor: AppColors.lightYellowBg,
-              ),
-              _buildKpiCard(
-                title: 'Total Received',
-                amount: '₹2,15,000',
-                subtitle: 'Client Collections',
-                icon: Icons.savings_rounded,
-                color: Colors.green.shade800,
-                bgColor: Colors.green.shade50,
-              ),
-              _buildKpiCard(
-                title: 'Total Spent',
-                amount: '₹1,42,500',
-                subtitle: 'Labour & Materials',
-                icon: Icons.payments_rounded,
-                color: Colors.orange.shade800,
-                bgColor: Colors.orange.shade50,
-              ),
-              _buildKpiCard(
-                title: 'Remaining Receivable',
-                amount: '₹1,70,000',
-                subtitle: 'Pending Collection',
-                icon: Icons.pending_actions_rounded,
-                color: Colors.blue.shade800,
-                bgColor: Colors.blue.shade50,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // Quick Actions Grid
-          const Text(
-            'Quick Operations',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionButton(
-                  context,
-                  title: 'Expense',
-                  icon: Icons.receipt_long_rounded,
-                  color: AppColors.darkCharcoal,
-                  onTap: () => onNavigateTab(2),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildActionButton(
-                  context,
-                  title: 'Purchase',
-                  icon: Icons.shopping_cart_rounded,
-                  color: AppColors.darkCharcoal,
-                  onTap: () => onNavigateTab(3),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildActionButton(
-                  context,
-                  title: 'Payment',
-                  icon: Icons.payments_rounded,
-                  color: AppColors.darkCharcoal,
-                  onTap: () => onNavigateTab(4),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // Overall Purchase Data Section
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Overall Purchase data',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              TextButton(
-                onPressed: () => onNavigateTab(3),
-                child: const Text(
-                  'View Purchase',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.darkYellow),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          Row(
-            children: [
-              Expanded(
-                child: _buildPurchaseStatCard(
-                  title: 'Total Purchase',
-                  amount: '₹12,45,000',
-                  icon: Icons.shopping_bag_rounded,
-                  color: AppColors.darkCharcoal,
-                  bgColor: AppColors.lightYellowBg,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildPurchaseStatCard(
-                  title: 'Total Paid',
-                  amount: '₹8,90,000',
-                  icon: Icons.check_circle_rounded,
-                  color: Colors.green.shade800,
-                  bgColor: Colors.green.shade50,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildPurchaseStatCard(
-                  title: 'Total Credit',
-                  amount: '₹3,55,000',
-                  icon: Icons.credit_score_rounded,
-                  color: Colors.red.shade800,
-                  bgColor: Colors.red.shade50,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-        ],
-      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
