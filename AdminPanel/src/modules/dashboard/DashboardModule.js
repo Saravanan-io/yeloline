@@ -41,7 +41,6 @@ export default function DashboardModule() {
     exportToPDF
   } = useApp();
 
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [viewingDetailEnquiry, setViewingDetailEnquiry] = useState(null);
 
   // Calculations

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Star, MapPin, Clock, Edit3, Trash2, Layers, Filter, CheckCircle2, ShieldCheck, FileSpreadsheet, FileText } from 'lucide-react';
+import { Plus, Star, MapPin, Clock, Edit3, Trash2, Layers, Filter, CheckCircle2, FileSpreadsheet, FileText } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Modal from '../../components/common/Modal/Modal';
 import MultiImageUploader from '../../components/common/MultiImageUploader/MultiImageUploader';

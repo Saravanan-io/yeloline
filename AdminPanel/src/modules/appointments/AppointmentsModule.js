@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Download, Upload, Truck, Phone, Calendar, CheckCircle2, Filter, Eye, MapPin, Wrench, Clock, FileText, FileSpreadsheet } from 'lucide-react';
+import { Plus, Truck, Phone, Calendar, CheckCircle2, Filter, Eye, MapPin, Wrench, Clock, FileText, FileSpreadsheet } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import DataTable from '../../components/common/DataTable/DataTable';
 import Modal from '../../components/common/Modal/Modal';
@@ -47,11 +47,10 @@ const SAMPLE_APPOINTMENT_ROW = {
 };
 
 export default function AppointmentsModule() {
-  const { appointments, addAppointment, updateAppointmentStatus, importAppointments, exportToXLS, exportToPDF } = useApp();
+  const { appointments, addAppointment, importAppointments, exportToXLS, exportToPDF } = useApp();
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [viewingDetailAppointment, setViewingDetailAppointment] = useState(null);
 
   const [formData, setFormData] = useState({

@@ -43,7 +43,7 @@ export default function UserMasterModule() {
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSource, setSelectedSource] = useState('All');
+  const [selectedSource] = useState('All');
   const [viewMode, setViewMode] = useState('grid');
 
   // Modal States
@@ -52,7 +52,6 @@ export default function UserMasterModule() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const handleOpenDetails = (customer) => {
     setSelectedCustomer(customer);

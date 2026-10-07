@@ -5,17 +5,12 @@ import {
   Phone,
   Mail,
   MapPin,
-  Calendar,
-  Filter,
   Plus,
   Eye,
   Trash2,
   CheckCircle,
   Clock,
   Send,
-  Building,
-  Upload,
-  Download,
   Check,
   FileSpreadsheet,
   FileText
@@ -54,7 +49,6 @@ export default function ContactEnquiryModule() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const [newFormData, setNewFormData] = useState({
     name: '',

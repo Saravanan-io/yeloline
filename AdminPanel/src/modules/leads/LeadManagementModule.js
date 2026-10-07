@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Download, Upload, Edit3, Trash2, Phone, Mail, MapPin, Filter, Building2, Eye, Calendar, Layers, FileText, MessageSquare, FileSpreadsheet } from 'lucide-react';
+import { Plus, Edit3, Trash2, Phone, Mail, MapPin, Filter, Building2, Eye, Calendar, Layers, FileText, MessageSquare, FileSpreadsheet } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import DataTable from '../../components/common/DataTable/DataTable';
 import StatusBadge from '../../components/common/StatusBadge/StatusBadge';
@@ -124,7 +124,6 @@ export default function LeadManagementModule() {
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedEnquiryForStage, setSelectedEnquiryForStage] = useState(null);
   const [viewingDetailEnquiry, setViewingDetailEnquiry] = useState(null);
 

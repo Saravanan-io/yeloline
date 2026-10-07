@@ -8,8 +8,6 @@ import {
   FileText,
   MapPin,
   Calendar,
-  Wallet,
-  Building,
   User,
   Trash2,
   CheckCircle,

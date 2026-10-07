@@ -9,21 +9,9 @@ import {
   CheckCircle2,
   XCircle,
   ChevronDown,
-  Layers,
-  Box,
-  Building2,
-  DollarSign,
-  CreditCard,
-  ShoppingCart,
-  Wrench,
-  Users,
-  TrendingUp,
   Grid,
-  Maximize,
-  LayoutGrid,
   List,
   Tag,
-  Filter,
   FileSpreadsheet,
   FileText
 } from 'lucide-react';
@@ -134,13 +122,11 @@ export default function AdminMasterModule() {
     toggleDropdownOptionStatus,
     resetDropdownMastersToDefault,
     adminMasterGroupFilter,
-    setAdminMasterGroupFilter,
     exportToXLS,
     exportToPDF
   } = useApp();
 
   const activeGroup = adminMasterGroupFilter || 'All';
-  const setActiveGroup = (grp) => setAdminMasterGroupFilter(grp);
   const [selectedCategoryKey, setSelectedCategoryKey] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');

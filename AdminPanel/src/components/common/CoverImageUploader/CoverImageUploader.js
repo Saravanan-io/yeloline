@@ -95,7 +95,7 @@ export default function CoverImageUploader({ value, onChange }) {
           </div>
           <div>
             <div className="image-dropzone-title">
-              {isDragActive ? "Drop cover image file now!" : "Click to upload or drag & drop primary cover image"}
+              {isUploading ? "Uploading cover image..." : isDragActive ? "Drop cover image file now!" : "Click to upload or drag & drop primary cover image"}
             </div>
             <div className="image-dropzone-sub">Supports JPG, PNG, WEBP high-res main banner photos</div>
           </div>

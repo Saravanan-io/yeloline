@@ -7,7 +7,6 @@ import {
   initialPurchases,
   initialPayments,
   initialAppointments,
-  initialMasterHighlights,
   monthlyFinancialOverview,
   initialUsers,
   initialDropdownMasters,

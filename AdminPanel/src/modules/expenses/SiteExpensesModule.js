@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Download, Upload, Trash2, DollarSign, Filter, Eye, User, FileSpreadsheet, FileText } from 'lucide-react';
+import { Plus, Trash2, DollarSign, Filter, Eye, User, FileSpreadsheet, FileText } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import DataTable from '../../components/common/DataTable/DataTable';
 import Modal from '../../components/common/Modal/Modal';
@@ -69,7 +69,6 @@ export default function SiteExpensesModule() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [viewingDetailExpense, setViewingDetailExpense] = useState(null);
 
   // Dynamic Site Names list for modal & filter selection

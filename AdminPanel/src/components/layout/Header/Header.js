@@ -8,8 +8,6 @@ export default function Header() {
     notifications,
     markAllNotificationsRead,
     logout,
-    triggerSplashLoader,
-    setActiveTab,
     isSidebarCollapsed,
     toggleSidebar
   } = useApp();
