@@ -1,4 +1,4 @@
-package com.pep.yeloline
+package com.yeloline.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -25,12 +25,16 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
 
   final List<String> _categoryList = [
     'Masonry',
-    'Electrical',
-    'Plumbing',
     'Shuttering',
     'Tiles',
-    'Carpentry',
     'Painting',
+    'Doors and windows',
+    'Carpentry',
+    'Lathe Work',
+    'Electrical',
+    'Plumbing',
+    'Engineer\'s Misc.',
+    'Additional Work',
   ];
 
   final List<String> _labourList = [
@@ -120,21 +124,112 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
       return;
     }
 
+    final enteredAmount = double.tryParse(_amountController.text.trim().replaceAll(',', '')) ?? 0.0;
+    if (enteredAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid amount greater than 0')),
+      );
+      return;
+    }
+
     try {
       final expId = 'EXP-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
       final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+      final detailsNote = _expenseType == 'Labour'
+          ? (_selectedLabour != null ? 'Labour: $_selectedLabour' : '')
+          : (_selectedSupplier != null ? 'Supplier: $_selectedSupplier' : '');
+
+      // 1. Record expense in Firestore 'expenses' collection
       await FirebaseFirestore.instance.collection('expenses').doc(expId).set({
         'expense_id': expId,
         'site_name': _selectedSite,
         'work_category': _selectedCategory,
         'category': _expenseType,
-        'amount': _amountController.text.trim(),
+        'amount': enteredAmount,
         'date': dateStr,
         'payment_mode': _paymentMode,
         'entered_by': _enteredBy ?? 'Suriya prakash',
-        'notes': '',
+        'notes': detailsNote,
         'created_at': FieldValue.serverTimestamp(),
       });
+
+      // 2. Direct sync: Update site's budget_items & total_expense in 'sites' collection
+      try {
+        final sitesRef = FirebaseFirestore.instance.collection('sites');
+        QuerySnapshot siteQuery = await sitesRef.where('site_name', isEqualTo: _selectedSite).limit(1).get();
+        if (siteQuery.docs.isEmpty) {
+          siteQuery = await sitesRef.where('title', isEqualTo: _selectedSite).limit(1).get();
+        }
+        if (siteQuery.docs.isEmpty) {
+          siteQuery = await sitesRef.where('site_id', isEqualTo: _selectedSite).limit(1).get();
+        }
+
+        const defaultTitles = [
+          'Masonry work expenses',
+          'Shuttering work expenses',
+          'Tiles work expenses',
+          'Painting work expenses',
+          'Doors and windows',
+          'Lathe Work expenses',
+          'Electrical work expenses',
+          'Plumbing work expenses',
+          "Engineer's Misc.",
+          'Additional Work'
+        ];
+
+        for (final siteDoc in siteQuery.docs) {
+          final data = siteDoc.data() as Map<String, dynamic>;
+          final rawBudget = (data['budget_items'] as List<dynamic>?) ?? [];
+
+          List<Map<String, dynamic>> updatedBudget = [];
+          if (rawBudget.isNotEmpty) {
+            updatedBudget = rawBudget.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+          } else {
+            updatedBudget = List.generate(defaultTitles.length, (i) => {
+              'sno': i + 1,
+              'work_item': defaultTitles[i],
+              'description': defaultTitles[i],
+              'estimated_amount': 0,
+              'expense_amount': 0,
+              'balance': 0,
+            });
+          }
+
+          // Find row matching _selectedCategory
+          int matchedIdx = -1;
+          for (int i = 0; i < updatedBudget.length; i++) {
+            final desc = (updatedBudget[i]['work_item'] ?? updatedBudget[i]['description'] ?? '').toString().toLowerCase();
+            final cat = _selectedCategory.toLowerCase();
+            if (desc.contains(cat) || cat.contains(desc)) {
+              matchedIdx = i;
+              break;
+            }
+            if (_selectedCategory == 'Carpentry' && (desc.contains('door') || desc.contains('window'))) {
+              matchedIdx = i;
+              break;
+            }
+          }
+
+          if (matchedIdx != -1) {
+            final curExp = (num.tryParse(updatedBudget[matchedIdx]['expense_amount']?.toString() ?? '0') ?? 0).toDouble();
+            final curEst = (num.tryParse(updatedBudget[matchedIdx]['estimated_amount']?.toString() ?? '0') ?? 0).toDouble();
+            final newExp = curExp + enteredAmount;
+            updatedBudget[matchedIdx]['expense_amount'] = newExp;
+            updatedBudget[matchedIdx]['balance'] = curEst - newExp;
+          }
+
+          final newTotalExp = updatedBudget.fold<double>(0.0, (acc, it) =>
+            acc + (num.tryParse(it['expense_amount']?.toString() ?? '0') ?? 0).toDouble()
+          );
+
+          await siteDoc.reference.update({
+            'budget_items': updatedBudget,
+            'total_expense': newTotalExp,
+          });
+        }
+      } catch (siteErr) {
+        debugPrint('Note: direct site budget_items update note: $siteErr');
+      }
 
       _amountController.clear();
 

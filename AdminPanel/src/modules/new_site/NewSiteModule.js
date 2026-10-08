@@ -452,12 +452,15 @@ export default function NewSiteModule() {
       const cleanPhone = clientPhone.replace(/\D/g, '');
 
       // Budget items with auto-computed balance
-      const formattedBudgetItems = budgetRows.map(row => {
+      const formattedBudgetItems = budgetRows.map((row, idx) => {
         const est = parseFloat(row.estimated_amount) || 0;
         const exp = parseFloat(row.expense_amount) || 0;
+        const fallbackDesc = DEFAULT_BUDGET_ROWS[idx]?.description || DEFAULT_BUDGET_ROWS.find(d => d.sno === row.sno)?.description || `Work Item #${row.sno || idx + 1}`;
+        const desc = (row.description || row.work_item || '').trim() || fallbackDesc;
         return {
-          sno: row.sno,
-          description: row.description,
+          sno: row.sno || idx + 1,
+          work_item: desc,
+          description: desc,
           estimated_amount: est,
           expense_amount: exp,
           balance: est - exp

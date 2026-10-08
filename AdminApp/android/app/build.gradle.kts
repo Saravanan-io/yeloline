@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.pep.yeloline"
+    namespace = "com.yeloline.admin"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -17,7 +17,7 @@ android {
 
     defaultConfig {
         // Application ID matching google-services.json
-        applicationId = "com.pep.yeloline"
+        applicationId = "com.yeloline.admin"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

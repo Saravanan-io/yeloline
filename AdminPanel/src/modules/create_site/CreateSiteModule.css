@@ -1680,3 +1680,120 @@
     width: 100%;
   }
 }
+
+/* ========================================================
+   FULL-SCREEN VIEW & EDIT STYLES
+   ======================================================== */
+
+.site-fullscreen-view {
+  animation: fadeInFullscreen 0.25s ease-out;
+}
+
+@keyframes fadeInFullscreen {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.site-fullscreen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  padding: 18px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.site-fullscreen-header-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.back-to-sites-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  background: var(--bg-input, #f8fafc);
+  color: var(--text-primary, #0f172a);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.back-to-sites-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  transform: translateX(-3px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.site-fullscreen-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.site-fullscreen-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.site-fullscreen-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #64748b);
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.site-fullscreen-sub .sub-dot {
+  color: #cbd5e1;
+}
+
+.site-fullscreen-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #64748b);
+  margin: 2px 0 0;
+}
+
+.site-fullscreen-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .site-fullscreen-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .site-fullscreen-header-left {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .site-fullscreen-header-actions {
+    justify-content: flex-end;
+  }
+}

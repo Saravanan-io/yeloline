@@ -247,12 +247,58 @@ class _AdminSitesScreenState extends State<AdminSitesScreen> {
 
                         // Department-wise Budget Allocation from siteData['budget_items']
                         final rawBudgetItems = (siteData['budget_items'] as List<dynamic>?) ?? [];
-                        final List<DeptBudgetItem> deptItems = rawBudgetItems.map((raw) {
+                        const defaultTitles = [
+                          'Masonry work expenses',
+                          'Shuttering work expenses',
+                          'Tiles work expenses',
+                          'Painting work expenses',
+                          'Doors and windows',
+                          'Lathe Work expenses',
+                          'Electrical work expenses',
+                          'Plumbing work expenses',
+                          "Engineer's Misc.",
+                          'Additional Work'
+                        ];
+
+                        final itemsToIterate = rawBudgetItems.isNotEmpty
+                            ? rawBudgetItems
+                            : defaultTitles.map((t) => {'work_item': t, 'estimated_amount': 0, 'expense_amount': 0}).toList();
+
+                        final List<DeptBudgetItem> deptItems = itemsToIterate.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final raw = entry.value;
                           final item = Map<String, dynamic>.from(raw as Map);
-                          final desc = (item['description'] ?? 'Work Item').toString();
+                          String desc = (item['work_item'] ?? item['description'] ?? '').toString().trim();
+                          if (desc.isEmpty || desc == 'Work Item') {
+                            desc = idx < defaultTitles.length ? defaultTitles[idx] : 'Work Item #${idx + 1}';
+                          }
+
+                          // Sum live matching expenses streamed from Firestore
+                          final liveCategorySpent = siteExpenses.where((d) {
+                            final m = d.data() as Map<String, dynamic>;
+                            final cat = (m['work_category'] ?? m['category'] ?? '').toString().toLowerCase();
+                            final descLower = desc.toLowerCase();
+                            if (descLower.contains(cat) || cat.contains(descLower)) return true;
+                            if (idx == 0 || descLower.contains('masonry')) return cat.contains('mason');
+                            if (idx == 1 || descLower.contains('shuttering')) return cat.contains('shutter') || cat.contains('centering');
+                            if (idx == 2 || descLower.contains('tile')) return cat.contains('tile');
+                            if (idx == 3 || descLower.contains('paint')) return cat.contains('paint');
+                            if (idx == 4 || descLower.contains('door') || descLower.contains('window')) return cat.contains('door') || cat.contains('window') || cat.contains('carpent');
+                            if (idx == 5 || descLower.contains('lathe')) return cat.contains('lathe') || cat.contains('fabricat') || cat.contains('weld');
+                            if (idx == 6 || descLower.contains('electric')) return cat.contains('electr');
+                            if (idx == 7 || descLower.contains('plumb')) return cat.contains('plumb') || cat.contains('pipe');
+                            if (idx == 8 || descLower.contains('engineer') || descLower.contains('misc')) return cat.contains('engineer') || cat.contains('misc') || cat.contains('supervisor');
+                            if (idx == 9 || descLower.contains('additional')) return cat.contains('addition') || cat.contains('extra');
+                            return false;
+                          }).fold<double>(0.0, (acc, d) {
+                            final m = d.data() as Map<String, dynamic>;
+                            return acc + (num.tryParse(m['amount']?.toString() ?? '0') ?? 0).toDouble();
+                          });
+
                           final est = (num.tryParse(item['estimated_amount']?.toString() ?? '0') ?? 0).toDouble();
-                          final exp = (num.tryParse(item['expense_amount']?.toString() ?? '0') ?? 0).toDouble();
-                          final rem = (num.tryParse(item['balance']?.toString() ?? (est - exp).toString()) ?? 0).toDouble();
+                          final rawExp = (num.tryParse(item['expense_amount']?.toString() ?? '0') ?? 0).toDouble();
+                          final exp = liveCategorySpent > 0 ? liveCategorySpent : rawExp;
+                          final rem = (est - exp);
                           final prog = est > 0 ? (exp / est).clamp(0.0, 1.0) : 0.0;
                           final statusColor = prog >= 1.0 ? Colors.red : Colors.green;
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Building2,
   Plus,
@@ -35,7 +35,6 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import DataTable from '../../components/common/DataTable/DataTable';
-import Modal from '../../components/common/Modal/Modal';
 import CustomSelect from '../../components/common/CustomSelect/CustomSelect';
 import CSVImportModal from '../../components/common/CSVImportModal/CSVImportModal';
 import '../new_site/NewSiteModule.css';
@@ -89,6 +88,37 @@ const DEFAULT_BUDGET_ROWS = [
   { sno: 9, description: "Engineer's Misc.", estimated_amount: '', expense_amount: '' },
   { sno: 10, description: 'Additional Work', estimated_amount: '', expense_amount: '' }
 ];
+
+export const matchExpenseToBudgetCategory = (exp, sno, desc) => {
+  if (!exp) return false;
+  const cat = String(exp.work_category || exp.category || exp.description || exp.notes || '').trim().toLowerCase();
+  const target = String(desc || '').trim().toLowerCase();
+  if (cat && target && (target.includes(cat) || cat.includes(target))) return true;
+  if (sno === 1 || target.includes('masonry')) return cat.includes('mason') || cat.includes('brick');
+  if (sno === 2 || target.includes('shuttering')) return cat.includes('shutter') || cat.includes('centering') || cat.includes('formwork') || cat.includes('bar bender');
+  if (sno === 3 || target.includes('tiles') || target.includes('tile')) return cat.includes('tile') || cat.includes('flooring') || cat.includes('granite') || cat.includes('marble');
+  if (sno === 4 || target.includes('painting') || target.includes('paint')) return cat.includes('paint') || cat.includes('whitewash');
+  if (sno === 5 || target.includes('doors') || target.includes('windows')) return cat.includes('door') || cat.includes('window') || cat.includes('carpent') || cat.includes('wood') || cat.includes('upvc');
+  if (sno === 6 || target.includes('lathe')) return cat.includes('lathe') || cat.includes('fabricat') || cat.includes('weld') || cat.includes('steel') || cat.includes('grill') || cat.includes('iron');
+  if (sno === 7 || target.includes('electrical')) return cat.includes('electr') || cat.includes('wiring') || cat.includes('lighting');
+  if (sno === 8 || target.includes('plumbing')) return cat.includes('plumb') || cat.includes('pipe') || cat.includes('sanitar') || cat.includes('drain');
+  if (sno === 9 || target.includes('engineer') || target.includes('misc')) return cat.includes('engineer') || cat.includes('misc') || cat.includes('supervisor') || cat.includes('travel') || cat.includes('site expense');
+  if (sno === 10 || target.includes('additional')) return cat.includes('addition') || cat.includes('extra') || cat.includes('other');
+  return false;
+};
+
+export const isExpenseMatchingSite = (exp, site) => {
+  if (!exp || !site) return false;
+  const expSiteName = String(exp.site_name || '').toLowerCase().trim();
+  const expSiteId = String(exp.site_id || '').toLowerCase().trim();
+  const targetSiteName = String(site.site_name || site.title || '').toLowerCase().trim();
+  const targetSiteId = String(site.site_id || site.id || '').toLowerCase().trim();
+  if (targetSiteId && expSiteId && targetSiteId === expSiteId) return true;
+  if (targetSiteName && expSiteName && (targetSiteName === expSiteName || targetSiteName.includes(expSiteName) || expSiteName.includes(targetSiteName))) return true;
+  if (targetSiteId && expSiteName && targetSiteId === expSiteName) return true;
+  if (targetSiteName && expSiteId && targetSiteName === expSiteId) return true;
+  return false;
+};
 
 const getInitialFloorStages = (floorTitle = 'GROUND FLOOR') => [
   { sno: 1, stage_name: 'MOBILIZATION ADVANCE (16%)', amount: '', work_schedule: '' },
@@ -151,7 +181,8 @@ export default function CreateSiteModule() {
     savePaymentBreakup,
     users,
     updateUser,
-    addUser
+    addUser,
+    expenses = []
   } = useApp();
 
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
@@ -165,6 +196,18 @@ export default function CreateSiteModule() {
   const [detailActiveTab, setDetailActiveTab] = useState(1);
   const [showDetailPassword, setShowDetailPassword] = useState(false);
   const [copiedCreds, setCopiedCreds] = useState(false);
+  const [returnToViewSite, setReturnToViewSite] = useState(null);
+
+  // Smooth scroll to top whenever entering view or edit full-screen mode
+  useEffect(() => {
+    if (viewingDetailSite || editingSite) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      const mainContent = document.querySelector('.admin-main-content');
+      if (mainContent) {
+        mainContent.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      }
+    }
+  }, [viewingDetailSite, editingSite]);
 
   // Edit Wizard State (Matching 4 Registered Menus)
   const [editStep, setEditStep] = useState(1);
@@ -298,9 +341,10 @@ export default function CreateSiteModule() {
   const totalBudgetVal = sites.reduce((sum, s) => sum + Number(s.estimated_budget || 0), 0);
   const activeOngoingCount = sites.filter(s => s.status !== 'Completed').length;
 
-  // Open Edit Modal with 4 Registered Menus pre-filled
-  const openEditModal = (site) => {
+  // Open Edit View with 4 Registered Menus pre-filled
+  const openEditModal = (site, fromView = false) => {
     setEditingSite(site);
+    setReturnToViewSite(fromView ? site : null);
     setEditStep(1);
     setEditErrors({});
 
@@ -314,15 +358,57 @@ export default function CreateSiteModule() {
     setEditProgress(site.progress_percentage || 0);
 
     // Budget rows
+    const siteLiveExps = (expenses || []).filter(e => isExpenseMatchingSite(e, site));
+    const getLiveExpForCat = (sno, desc) => {
+      return siteLiveExps
+        .filter(e => matchExpenseToBudgetCategory(e, sno, desc))
+        .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    };
+
     if (Array.isArray(site.budget_items) && site.budget_items.length > 0) {
-      setEditBudgetRows(site.budget_items.map((item, idx) => ({
-        sno: item.sno || idx + 1,
-        description: item.work_item || item.description || `Work Item #${idx + 1}`,
-        estimated_amount: item.estimated_amount !== undefined && item.estimated_amount !== null ? String(item.estimated_amount) : '',
-        expense_amount: item.expense_amount !== undefined && item.expense_amount !== null ? String(item.expense_amount) : ''
-      })));
+      setEditBudgetRows(DEFAULT_BUDGET_ROWS.map((defRow, idx) => {
+        const existing = site.budget_items.find(r => Number(r.sno) === defRow.sno) || site.budget_items[idx] || {};
+        const desc = (existing.work_item || existing.description || '').trim() || defRow.description;
+        const liveExp = getLiveExpForCat(defRow.sno, desc);
+        const expVal = existing.expense_amount !== undefined && existing.expense_amount !== null && existing.expense_amount !== '' && Number(existing.expense_amount) > 0
+          ? String(existing.expense_amount)
+          : (liveExp > 0 ? String(liveExp) : '');
+        return {
+          sno: defRow.sno,
+          description: desc,
+          work_item: desc,
+          estimated_amount: existing.estimated_amount !== undefined && existing.estimated_amount !== null ? String(existing.estimated_amount) : '',
+          expense_amount: expVal
+        };
+      }));
+      if (site.budget_items.length > 10) {
+        setEditBudgetRows(prev => [
+          ...prev,
+          ...site.budget_items.slice(10).map((extra, extraIdx) => {
+            const desc = (extra.work_item || extra.description || '').trim() || `Additional Item #${extraIdx + 1}`;
+            const liveExp = getLiveExpForCat(extra.sno || 11 + extraIdx, desc);
+            const expVal = extra.expense_amount !== undefined && extra.expense_amount !== null && extra.expense_amount !== '' && Number(extra.expense_amount) > 0
+              ? String(extra.expense_amount)
+              : (liveExp > 0 ? String(liveExp) : '');
+            return {
+              sno: extra.sno || 11 + extraIdx,
+              description: desc,
+              work_item: desc,
+              estimated_amount: extra.estimated_amount !== undefined && extra.estimated_amount !== null ? String(extra.estimated_amount) : '',
+              expense_amount: expVal
+            };
+          })
+        ]);
+      }
     } else {
-      setEditBudgetRows(DEFAULT_BUDGET_ROWS.map(r => ({ ...r })));
+      setEditBudgetRows(DEFAULT_BUDGET_ROWS.map(r => {
+        const liveExp = getLiveExpForCat(r.sno, r.description);
+        return {
+          ...r,
+          work_item: r.description,
+          expense_amount: liveExp > 0 ? String(liveExp) : ''
+        };
+      }));
     }
 
     // Payment breakup floors
@@ -387,6 +473,15 @@ export default function CreateSiteModule() {
     setEditDescription(site.description || '');
 
     setIsModalOpen(true);
+  };
+
+  const handleCancelEdit = () => {
+    if (returnToViewSite) {
+      setViewingDetailSite(returnToViewSite);
+    }
+    setEditingSite(null);
+    setIsModalOpen(false);
+    setReturnToViewSite(null);
   };
 
   // Step 1: Budget row helpers
@@ -554,10 +649,12 @@ export default function CreateSiteModule() {
       const formattedBudgetItems = editBudgetRows.map((r, idx) => {
         const est = parseFloat(r.estimated_amount) || 0;
         const exp = parseFloat(r.expense_amount) || 0;
+        const fallbackDesc = DEFAULT_BUDGET_ROWS[idx]?.description || DEFAULT_BUDGET_ROWS.find(d => d.sno === r.sno)?.description || `Work Item #${r.sno || idx + 1}`;
+        const desc = (r.description || r.work_item || '').trim() || fallbackDesc;
         return {
           sno: r.sno || idx + 1,
-          work_item: (r.description || '').trim(),
-          description: (r.description || '').trim(),
+          work_item: desc,
+          description: desc,
           estimated_amount: est,
           expense_amount: exp,
           balance: est - exp
@@ -657,8 +754,35 @@ export default function CreateSiteModule() {
         await addUser(userPayload);
       }
 
+      if (returnToViewSite) {
+        const updatedSite = {
+          ...editingSite,
+          site_name: editSiteName.trim(),
+          location: editLocation.trim(),
+          structure_type: editStructureType,
+          supervisor_in_charge: editSupervisor.trim(),
+          start_date: editStartDate,
+          target_completion_date: editTargetDate,
+          status: editStatus,
+          progress_percentage: parseInt(editProgress, 10) || 0,
+          builtup_area_sqft: parseFloat(editBuiltupArea) || editingSite.builtup_area_sqft,
+          number_of_floors: editFloors,
+          cover_image: editCoverImage.trim(),
+          gallery_images: editGalleryImages,
+          description: editDescription.trim(),
+          budget_items: editBudgetRows,
+          estimated_budget: editBudgetTotals.totalEstimated,
+          client_name: editClientName.trim(),
+          client_phone: cleanPhone,
+          client_password: editClientPassword.trim(),
+          client_email: editClientEmail.trim()
+        };
+        setViewingDetailSite(updatedSite);
+      }
+
       setIsModalOpen(false);
       setEditingSite(null);
+      setReturnToViewSite(null);
     } catch (err) {
       console.error('Error saving edited site:', err);
       alert('An error occurred while saving: ' + err.message);
@@ -801,8 +925,10 @@ export default function CreateSiteModule() {
 
   return (
     <div className="create-site-module">
-      {/* Header Banner */}
-      <div className="create-site-header">
+      {!editingSite && !viewingDetailSite && (
+        <>
+          {/* Header Banner */}
+          <div className="create-site-header">
         <div>
           <div className="module-title-row">
             <Building2 className="module-header-icon" size={28} />
@@ -1081,19 +1207,59 @@ export default function CreateSiteModule() {
           />
         </div>
       )}
+        </>
+      )}
 
-      {/* EDIT SITE MODAL WITH 4 REGISTERED MENUS (WIZARD STEPPER) */}
+      {/* EDIT SITE FULL-SCREEN VIEW (WIZARD STEPPER) */}
       {editingSite && (
-        <Modal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setEditingSite(null);
-          }}
-          title={`Edit Site Details: ${editingSite.site_name} (${editingSite.site_id})`}
-          maxWidth="1020px"
-        >
-          <div className="site-detail-modal-body">
+        <div className="site-fullscreen-view">
+          <div className="site-fullscreen-header">
+            <div className="site-fullscreen-header-left">
+              <button
+                type="button"
+                className="back-to-sites-btn"
+                onClick={handleCancelEdit}
+                title={returnToViewSite ? 'Back to Site Details' : 'Back to All Sites'}
+              >
+                <ArrowLeft size={18} />
+                <span>{returnToViewSite ? 'Back to Site Details' : 'Back to All Sites'}</span>
+              </button>
+              <div className="site-fullscreen-header-info">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <span className="site-id-pill large">{editingSite.site_id}</span>
+                  <h1 className="site-fullscreen-title">Edit Site: {editingSite.site_name}</h1>
+                  <span className={`site-status-badge large ${getStatusBadgeClass(editStatus)}`}>
+                    {editStatus}
+                  </span>
+                </div>
+                <p className="site-fullscreen-desc">
+                  Update project specifications, itemized budget allocations, payment milestones, and client access credentials.
+                </p>
+              </div>
+            </div>
+
+            <div className="site-fullscreen-header-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleCancelEdit}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSaveEditedSite}
+                disabled={isEditSubmitting}
+                style={{ gap: '8px' }}
+              >
+                <CheckCircle2 size={16} />
+                <span>{isEditSubmitting ? 'Saving Changes...' : 'Save & Update Site'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="site-detail-modal-body" style={{ marginTop: '16px' }}>
             {/* 4-STEP WIZARD TABS STEPPER (MATCHING REGISTERED MENUS) */}
             <div className="site-detail-stepper-card">
               <div className="site-detail-stepper-container">
@@ -1959,17 +2125,11 @@ export default function CreateSiteModule() {
             )}
 
           </div>
-        </Modal>
+        </div>
       )}
 
-      {/* VIEW SITE DETAIL MODAL WITH 4-STEP WIZARD TABS */}
-      <Modal
-        isOpen={!!viewingDetailSite}
-        onClose={() => setViewingDetailSite(null)}
-        title={`Site Details: ${viewingDetailSite?.site_name || ''}`}
-        maxWidth="1020px"
-      >
-        {viewingDetailSite && (() => {
+      {/* VIEW SITE DETAIL FULL-SCREEN VIEW WITH 4-STEP WIZARD TABS */}
+      {viewingDetailSite && (() => {
           // Find payment breakup for this site
           const siteBreakup = (paymentBreakups || []).find(b => 
             (b.site_id && (b.site_id === viewingDetailSite.site_id || String(b.site_id).toLowerCase() === String(viewingDetailSite.site_id).toLowerCase())) ||
@@ -1988,23 +2148,61 @@ export default function CreateSiteModule() {
           const clientPassword = viewingDetailSite.client_password || clientUser?.password || 'Pass@123';
           const clientEmail = viewingDetailSite.client_email || clientUser?.email || 'N/A';
 
-          // Budget Items to render
-          const budgetRows = (Array.isArray(viewingDetailSite.budget_items) && viewingDetailSite.budget_items.length > 0)
+          // Budget Items to render: Always ensure the 10 standard categories from DEFAULT_BUDGET_ROWS are shown for all sites
+          const rawBudgetItems = (Array.isArray(viewingDetailSite.budget_items) && viewingDetailSite.budget_items.length > 0)
             ? viewingDetailSite.budget_items
-            : [
-                { sno: 1, work_item: "Civil & Structural Foundation Work", estimated_amount: Math.round((viewingDetailSite.estimated_budget || 0) * 0.25), expense_amount: Math.round((viewingDetailSite.total_expense || 0) * 0.3) },
-                { sno: 2, work_item: "Brickwork & Superstructure Masonry", estimated_amount: Math.round((viewingDetailSite.estimated_budget || 0) * 0.20), expense_amount: Math.round((viewingDetailSite.total_expense || 0) * 0.25) },
-                { sno: 3, work_item: "Roof RCC Concrete & Shuttering", estimated_amount: Math.round((viewingDetailSite.estimated_budget || 0) * 0.18), expense_amount: Math.round((viewingDetailSite.total_expense || 0) * 0.20) },
-                { sno: 4, work_item: "Plastering (Internal & External)", estimated_amount: Math.round((viewingDetailSite.estimated_budget || 0) * 0.12), expense_amount: Math.round((viewingDetailSite.total_expense || 0) * 0.10) },
-                { sno: 5, work_item: "Electrical & MEP Concealed Plumbing", estimated_amount: Math.round((viewingDetailSite.estimated_budget || 0) * 0.10), expense_amount: Math.round((viewingDetailSite.total_expense || 0) * 0.08) },
-                { sno: 6, work_item: "Flooring, Wall Tiles & Finishing", estimated_amount: Math.round((viewingDetailSite.estimated_budget || 0) * 0.15), expense_amount: Math.round((viewingDetailSite.total_expense || 0) * 0.07) }
-              ].map(r => ({
-                ...r,
-                balance: (parseFloat(r.estimated_amount) || 0) - (parseFloat(r.expense_amount) || 0)
-              }));
+            : [];
+
+          // Find live expenses matching this site from Firestore live expenses collection
+          const siteLiveExps = (expenses || []).filter(e => isExpenseMatchingSite(e, viewingDetailSite));
+          const getLiveExpForCat = (sno, desc) => {
+            return siteLiveExps
+              .filter(e => matchExpenseToBudgetCategory(e, sno, desc))
+              .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+          };
+          const getLiveCountForCat = (sno, desc) => {
+            return siteLiveExps.filter(e => matchExpenseToBudgetCategory(e, sno, desc)).length;
+          };
+
+          const budgetRows = DEFAULT_BUDGET_ROWS.map((defRow, idx) => {
+            const existing = rawBudgetItems.find(r => Number(r.sno) === defRow.sno) || rawBudgetItems[idx] || {};
+            const desc = (existing.work_item || existing.description || '').trim() || defRow.description;
+            const est = parseFloat(existing.estimated_amount) || 0;
+            const liveExp = getLiveExpForCat(defRow.sno, desc);
+            const rawStoredExp = parseFloat(existing.expense_amount) || 0;
+            const exp = liveExp > 0 ? liveExp : rawStoredExp;
+            return {
+              sno: defRow.sno,
+              work_item: desc,
+              description: desc,
+              estimated_amount: est,
+              expense_amount: exp,
+              balance: est - exp,
+              live_count: getLiveCountForCat(defRow.sno, desc)
+            };
+          });
+
+          if (rawBudgetItems.length > 10) {
+            rawBudgetItems.slice(10).forEach((extra, extraIdx) => {
+              const est = parseFloat(extra.estimated_amount) || 0;
+              const desc = (extra.work_item || extra.description || '').trim() || `Additional Item #${extraIdx + 1}`;
+              const liveExp = getLiveExpForCat(extra.sno || 11 + extraIdx, desc);
+              const rawStoredExp = parseFloat(extra.expense_amount) || 0;
+              const exp = liveExp > 0 ? liveExp : rawStoredExp;
+              budgetRows.push({
+                sno: extra.sno || 11 + extraIdx,
+                work_item: desc,
+                description: desc,
+                estimated_amount: est,
+                expense_amount: exp,
+                balance: est - exp,
+                live_count: getLiveCountForCat(extra.sno || 11 + extraIdx, desc)
+              });
+            });
+          }
 
           const totalEstimated = budgetRows.reduce((s, r) => s + (parseFloat(r.estimated_amount) || 0), 0) || (parseFloat(viewingDetailSite.estimated_budget) || 0);
-          const totalExpense = budgetRows.reduce((s, r) => s + (parseFloat(r.expense_amount) || 0), 0) || (parseFloat(viewingDetailSite.total_expense) || 0);
+          const totalExpense = budgetRows.reduce((s, r) => s + (parseFloat(r.expense_amount) || 0), 0);
           const totalBalance = totalEstimated - totalExpense;
 
           // Breakup floors
@@ -2024,28 +2222,75 @@ export default function CreateSiteModule() {
           , 0);
 
           return (
-            <div className="site-detail-modal-body">
+            <div className="site-fullscreen-view">
+              {/* Top Navigation & Action Header */}
+              <div className="site-fullscreen-header">
+                <div className="site-fullscreen-header-left">
+                  <button
+                    type="button"
+                    className="back-to-sites-btn"
+                    onClick={() => setViewingDetailSite(null)}
+                    title="Back to All Sites"
+                  >
+                    <ArrowLeft size={18} />
+                    <span>Back to All Sites</span>
+                  </button>
+
+                  <div className="site-fullscreen-header-info">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <span className="site-id-pill large">{viewingDetailSite.site_id}</span>
+                      <h1 className="site-fullscreen-title">{viewingDetailSite.site_name}</h1>
+                      <span className={`site-status-badge large ${getStatusBadgeClass(viewingDetailSite.status)}`}>
+                        {viewingDetailSite.status}
+                      </span>
+                    </div>
+                    <div className="site-fullscreen-sub">
+                      <MapPin size={14} />
+                      <span>{viewingDetailSite.location}</span>
+                      <span className="sub-dot">•</span>
+                      <span>{viewingDetailSite.structure_type}</span>
+                      {viewingDetailSite.builtup_area_sqft && (
+                        <>
+                          <span className="sub-dot">•</span>
+                          <span>{Number(viewingDetailSite.builtup_area_sqft).toLocaleString()} sq. ft.</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="site-fullscreen-header-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setViewingDetailSite(null)}
+                  >
+                    Back to Sites
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                      const siteToEdit = viewingDetailSite;
+                      openEditModal(siteToEdit, true);
+                      setViewingDetailSite(null);
+                    }}
+                    style={{ gap: '8px' }}
+                  >
+                    <Edit3 size={16} />
+                    <span>Edit Site Parameters</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Optional Cover Banner */}
               {viewingDetailSite.cover_image && (
-                <div className="detail-modal-cover-banner">
+                <div className="detail-modal-cover-banner" style={{ marginTop: '16px' }}>
                   <img src={viewingDetailSite.cover_image} alt={viewingDetailSite.site_name} onError={handleImgError} />
                 </div>
               )}
 
-              {/* Site Header Strip */}
-              <div className="detail-modal-header-strip">
-                <div>
-                  <span className="site-id-pill large">{viewingDetailSite.site_id}</span>
-                  <h2 className="detail-modal-title">{viewingDetailSite.site_name}</h2>
-                  <div className="detail-modal-sub">
-                    <MapPin size={14} />
-                    <span>{viewingDetailSite.location}</span>
-                  </div>
-                </div>
-                <span className={`site-status-badge large ${getStatusBadgeClass(viewingDetailSite.status)}`}>
-                  {viewingDetailSite.status}
-                </span>
-              </div>
+              <div className="site-detail-modal-body" style={{ marginTop: '16px' }}>
 
               {/* 4-STEP WIZARD TABS STEPPER (MATCHING SCREENSHOT) */}
               <div className="site-detail-stepper-card">
@@ -2190,9 +2435,16 @@ export default function CreateSiteModule() {
                           return (
                             <tr key={row.sno || idx}>
                               <td className="cell-sno">{row.sno || idx + 1}</td>
-                              <td className="cell-name">{row.work_item}</td>
+                              <td className="cell-name">
+                                <span>{row.work_item || row.description || DEFAULT_BUDGET_ROWS[idx]?.description || `Work Item #${row.sno || idx + 1}`}</span>
+                                {row.live_count > 0 && (
+                                  <span style={{ marginLeft: 8, fontSize: 11, background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+                                    {row.live_count} live {row.live_count === 1 ? 'expense' : 'expenses'}
+                                  </span>
+                                )}
+                              </td>
                               <td className="cell-currency">₹{formatINR(est)}</td>
-                              <td className="cell-currency">₹{formatINR(exp)}</td>
+                              <td className="cell-currency" style={exp > 0 ? { fontWeight: 700, color: '#b45309' } : {}}>₹{formatINR(exp)}</td>
                               <td className={`cell-currency ${bal < 0 ? 'balance-neg' : 'balance-pos'}`}>
                                 ₹{formatINR(bal)}
                               </td>
@@ -2596,8 +2848,8 @@ export default function CreateSiteModule() {
                         className="btn btn-primary"
                         onClick={() => {
                           const siteToEdit = viewingDetailSite;
+                          openEditModal(siteToEdit, true);
                           setViewingDetailSite(null);
-                          openEditModal(siteToEdit);
                         }}
                       >
                         <Edit3 size={15} />
@@ -2608,43 +2860,45 @@ export default function CreateSiteModule() {
                 </div>
               )}
 
+              </div>
             </div>
           );
         })()}
-      </Modal>
 
       {/* CSV Import Modal */}
-      <CSVImportModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        columnsSpec={SITE_COLUMNS_SPEC}
-        onImport={(data) => {
-          importSites(data);
-          setIsImportModalOpen(false);
-        }}
-        sampleRow={{
-          site_id: "SITE-105",
-          site_name: "Modern Minimalist Villa - Perundurai",
-          client_name: "Ramesh Sundaram",
-          client_phone: "+91 98421 88321",
-          client_email: "ramesh.s@gmail.com",
-          location: "Perundurai Road, Erode",
-          structure_type: "Villa",
-          builtup_area_sqft: 3200,
-          number_of_floors: "G + 1 Floor",
-          estimated_budget: 7200000,
-          supervisor_in_charge: "Er. S. Prakash",
-          start_date: "2026-02-15",
-          target_completion_date: "2026-11-30",
-          status: "In Progress",
-          progress_percentage: 65,
-          cement_brand: "UltraTech PPC (Premium)",
-          steel_brand: "TATA Tiscon 550D",
-          bricks_spec: "Red Bricks (Premium)",
-          flooring_spec: "Vitrified Tiles (Premium)",
-          description: "4BHK luxury villa"
-        }}
-      />
+      {!editingSite && !viewingDetailSite && (
+        <CSVImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          columnsSpec={SITE_COLUMNS_SPEC}
+          onImport={(data) => {
+            importSites(data);
+            setIsImportModalOpen(false);
+          }}
+          sampleRow={{
+            site_id: "SITE-105",
+            site_name: "Modern Minimalist Villa - Perundurai",
+            client_name: "Ramesh Sundaram",
+            client_phone: "+91 98421 88321",
+            client_email: "ramesh.s@gmail.com",
+            location: "Perundurai Road, Erode",
+            structure_type: "Villa",
+            builtup_area_sqft: 3200,
+            number_of_floors: "G + 1 Floor",
+            estimated_budget: 7200000,
+            supervisor_in_charge: "Er. S. Prakash",
+            start_date: "2026-02-15",
+            target_completion_date: "2026-11-30",
+            status: "In Progress",
+            progress_percentage: 65,
+            cement_brand: "UltraTech PPC (Premium)",
+            steel_brand: "TATA Tiscon 550D",
+            bricks_spec: "Red Bricks (Premium)",
+            flooring_spec: "Vitrified Tiles (Premium)",
+            description: "4BHK luxury villa"
+          }}
+        />
+      )}
     </div>
   );
 }

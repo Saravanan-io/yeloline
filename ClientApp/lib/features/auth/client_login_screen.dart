@@ -73,7 +73,6 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
 
   // Client Portal State
   final _clientPortalFormKey = GlobalKey<FormState>();
-  final _customSiteController = TextEditingController();
   final _clientPhoneController = TextEditingController();
   final _clientPasswordController = TextEditingController();
   bool _obscurePortalPassword = true;
@@ -85,7 +84,6 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     _nameController.dispose();
     _mobileController.dispose();
     _otpController.dispose();
-    _customSiteController.dispose();
     _clientPhoneController.dispose();
     _clientPasswordController.dispose();
     _timerObj?.cancel();
@@ -174,7 +172,6 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
   Future<void> _handleClientPortalLogin() async {
     final phone = _clientPhoneController.text.trim().replaceAll(RegExp(r'\D'), '');
     final password = _clientPasswordController.text.trim();
-    final siteInput = _customSiteController.text.trim();
 
     if (phone.isEmpty) {
       setState(() {
@@ -225,13 +222,11 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
 
         if (cPhone == phone || sPhone == phone) {
           final sName = d['site_name']?.toString() ?? d['name']?.toString() ?? '';
-          if (siteInput.isEmpty || sName.toLowerCase().contains(siteInput.toLowerCase())) {
-            matchingSiteData = d;
-            resolvedSite = sName;
-            resolvedClientName = d['client_name']?.toString() ?? d['clientName']?.toString() ?? '';
-            registeredPassword = d['client_password']?.toString() ?? d['password']?.toString() ?? '';
-            break;
-          }
+          matchingSiteData = d;
+          resolvedSite = sName;
+          resolvedClientName = d['client_name']?.toString() ?? d['clientName']?.toString() ?? '';
+          registeredPassword = d['client_password']?.toString() ?? d['password']?.toString() ?? '';
+          break;
         }
       }
 
@@ -619,19 +614,6 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                     });
                   },
                 ),
-              ),
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Field 3: Site / Project Name (Optional)
-            _buildInputLabel('Site / Project Name (Optional)'),
-            TextFormField(
-              controller: _customSiteController,
-              decoration: _buildInputDecoration(
-                hintText: 'Auto-detected from registered site',
-                prefixIcon: Icons.business_rounded,
               ),
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
