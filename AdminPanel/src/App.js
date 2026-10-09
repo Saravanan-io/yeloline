@@ -7,6 +7,7 @@ import LeadManagementModule from './modules/leads/LeadManagementModule';
 import PortfolioProjectModule from './modules/projects/PortfolioProjectModule';
 import SiteExpensesModule from './modules/expenses/SiteExpensesModule';
 import MaterialPurchaseModule from './modules/purchases/MaterialPurchaseModule';
+import MaterialPurchaseListModule from './modules/material_purchase_list/MaterialPurchaseListModule';
 import ClientPaymentsModule from './modules/payments/ClientPaymentsModule';
 import AppointmentsModule from './modules/appointments/AppointmentsModule';
 import UserMasterModule from './modules/user_master/UserMasterModule';
@@ -52,6 +53,8 @@ function MainRouter() {
         return <SiteExpensesModule />;
       case 'material_purchase':
         return <MaterialPurchaseModule />;
+      case 'material_purchase_list':
+        return <MaterialPurchaseListModule />;
       case 'client_payments':
         return <ClientPaymentsModule />;
       case 'renovation_appointments':

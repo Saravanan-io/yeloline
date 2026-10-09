@@ -12,7 +12,8 @@ import {
   MessageSquare,
   Settings,
   CalendarDays,
-  PlusCircle
+  PlusCircle,
+  ClipboardList
 } from 'lucide-react';
 import { useApp } from '../../../context/AppContext';
 import './Sidebar.css';
@@ -101,13 +102,18 @@ export default function Sidebar() {
     },
     {
       id: 'site_expenses',
-      label: 'Site Expense Tracker',
+      label: 'Labour Expense Tracker',
       icon: Receipt
     },
     {
       id: 'material_purchase',
-      label: 'Material Purchase Orders',
+      label: 'Material Expense Tracker',
       icon: ShoppingCart
+    },
+    {
+      id: 'material_purchase_list',
+      label: 'Material Purchase List',
+      icon: ClipboardList
     },
     {
       id: 'client_payments',

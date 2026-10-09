@@ -1,26 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import {
   Plus,
-  Receipt,
   FileSpreadsheet,
   FileText,
   Filter,
-  DollarSign,
   Trash2,
-  CheckCircle,
   Edit3,
-  Clock,
   Printer,
   Eye,
   Building,
-  Layers,
-  Search,
   CheckCircle2
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import DataTable from '../../components/common/DataTable/DataTable';
 import Modal from '../../components/common/Modal/Modal';
-import MetricCard from '../../components/common/MetricCard/MetricCard';
 import StatusBadge from '../../components/common/StatusBadge/StatusBadge';
 import './AdditionalBillingModule.css';
 
@@ -69,7 +62,6 @@ export default function AdditionalBillingModule() {
   } = useApp();
 
   const [selectedSiteFilter, setSelectedSiteFilter] = useState('ALL');
-  const [siteSearchQuery, setSiteSearchQuery] = useState('');
   const [updateSuccessNotice, setUpdateSuccessNotice] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBill, setEditingBill] = useState(null);
@@ -130,37 +122,7 @@ export default function AdditionalBillingModule() {
     return Array.from(siteMap.values());
   }, [sites, monthlyBillings, paymentBreakups]);
 
-  // Statistics for each site
-  const siteStats = useMemo(() => {
-    const stats = {};
-    allAvailableSites.forEach(s => {
-      const siteBills = (additionalBillings || []).filter(b => {
-        const bName = (b.site_name || b.siteName || '').trim().toLowerCase();
-        const bId = (b.site_id || b.siteId || '').trim().toLowerCase();
-        const sName = s.site_name.toLowerCase();
-        const sId = (s.id || '').toLowerCase();
-        return bName === sName || (bId && bId === sId) || (sName && bName.includes(sName));
-      });
-      const totalAmount = siteBills.reduce((acc, b) => acc + Number(b.amount ?? b.quoted_amount ?? 0), 0);
-      stats[s.site_name] = {
-        count: siteBills.length,
-        totalAmount,
-        bills: siteBills
-      };
-    });
-    return stats;
-  }, [allAvailableSites, additionalBillings]);
 
-  // Filtered sites for search bar
-  const filteredSitesList = useMemo(() => {
-    if (!siteSearchQuery.trim()) return allAvailableSites;
-    const q = siteSearchQuery.toLowerCase();
-    return allAvailableSites.filter(s =>
-      s.site_name.toLowerCase().includes(q) ||
-      (s.client_name && s.client_name.toLowerCase().includes(q)) ||
-      (s.location && s.location.toLowerCase().includes(q))
-    );
-  }, [allAvailableSites, siteSearchQuery]);
 
   // Currently selected site object
   const currentSelectedSiteObj = useMemo(() => {
@@ -363,22 +325,7 @@ export default function AdditionalBillingModule() {
     }));
   }, [filteredBillings]);
 
-  const totalQuotedValue = filteredBillings.reduce((acc, b) => acc + Number(b.quoted_amount ?? b.amount ?? 0), 0);
-  const totalExpenseValue = filteredBillings.reduce((acc, b) => acc + Number(b.expense_amount ?? 0), 0);
-  const totalBilledValue = filteredBillings.reduce((acc, b) => {
-    const val = b.amount !== undefined && b.amount !== null && b.amount !== ''
-      ? Number(b.amount)
-      : (Number(b.quoted_amount ?? 0) - Number(b.expense_amount ?? 0));
-    return acc + val;
-  }, 0);
-  const totalPaidValue = filteredBillings
-    .filter(b => b.status === 'Paid')
-    .reduce((acc, b) => {
-      const val = b.amount !== undefined && b.amount !== null && b.amount !== ''
-        ? Number(b.amount)
-        : (Number(b.quoted_amount ?? 0) - Number(b.expense_amount ?? 0));
-      return acc + val;
-    }, 0);
+
 
   // Table Columns matching Image 1: S.No., Description, Quoted Amount, Expense Amount, Amount in Rs.
   const tableColumns = [
@@ -545,122 +492,9 @@ export default function AdditionalBillingModule() {
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="metrics-grid">
-        <MetricCard
-          title="Total Additional Bills"
-          value={filteredBillings.length}
-          icon={Receipt}
-          subtext={selectedSiteFilter === 'ALL' ? "Variation orders across all sites" : `Bills for ${selectedSiteFilter}`}
-          highlight
-        />
-        <MetricCard
-          title="Total Quoted Amount"
-          value={`₹${(totalQuotedValue / 100000).toFixed(2)}L`}
-          icon={DollarSign}
-          subtext={`₹${Number(totalQuotedValue).toLocaleString('en-IN')} client quote`}
-        />
-        <MetricCard
-          title="Total Expense Amount"
-          value={`₹${(totalExpenseValue / 100000).toFixed(2)}L`}
-          icon={Clock}
-          subtext={`₹${Number(totalExpenseValue).toLocaleString('en-IN')} incurred cost`}
-        />
-        <MetricCard
-          title="Total Billed (Amount in Rs.)"
-          value={`₹${(totalBilledValue / 100000).toFixed(2)}L`}
-          icon={CheckCircle}
-          subtext={`₹${(totalPaidValue / 100000).toFixed(2)}L collected from clients`}
-        />
-      </div>
 
-      {/* ==================================================================== */}
-      {/* 1. All Registered Sites Selector Cards Section */}
-      {/* ==================================================================== */}
-      <div className="sites-selector-section">
-        <div className="sites-section-header">
-          <div className="sites-title-wrap">
-            <Building size={20} className="section-title-icon" />
-            <div>
-              <div className="sites-section-title">
-                Registered Sites & Client Projects
-                <span className="sites-count-badge">{allAvailableSites.length} Sites Available</span>
-              </div>
-              <div className="sites-section-subtitle">
-                Click any site below to view, add, or update additional work items synced directly with that client's app
-              </div>
-            </div>
-          </div>
-          <div className="sites-search-wrap">
-            <Search size={14} className="search-icon" />
-            <input
-              type="text"
-              className="sites-search-input"
-              placeholder="Search project sites..."
-              value={siteSearchQuery}
-              onChange={(e) => setSiteSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
 
-        <div className="sites-cards-grid">
-          {/* All Sites Card */}
-          <div
-            className={`site-card-item ${selectedSiteFilter === 'ALL' ? 'active' : ''}`}
-            onClick={() => setSelectedSiteFilter('ALL')}
-          >
-            <div className="site-card-top">
-              <div className="site-icon-box all-sites-icon">
-                <Layers size={18} />
-              </div>
-              <div className="site-card-heading">
-                <div className="site-card-name">All Registered Sites</div>
-                <div className="site-card-client">Entire organization view</div>
-              </div>
-              {selectedSiteFilter === 'ALL' && <span className="active-pill">Selected</span>}
-            </div>
-            <div className="site-card-footer">
-              <span className="works-badge">{additionalBillings.length} total works</span>
-              <span className="site-total-val">₹{(additionalBillings.reduce((acc, b) => acc + Number(b.amount ?? b.quoted_amount ?? 0), 0) / 100000).toFixed(2)}L</span>
-            </div>
-          </div>
 
-          {/* Individual Site Cards */}
-          {filteredSitesList.map(site => {
-            const isSelected = selectedSiteFilter.toLowerCase() === site.site_name.toLowerCase();
-            const stat = siteStats[site.site_name] || { count: 0, totalAmount: 0 };
-            return (
-              <div
-                key={site.id || site.site_name}
-                className={`site-card-item ${isSelected ? 'active' : ''}`}
-                onClick={() => setSelectedSiteFilter(site.site_name)}
-              >
-                <div className="site-card-top">
-                  <div className="site-icon-box">
-                    <Building size={18} />
-                  </div>
-                  <div className="site-card-heading">
-                    <div className="site-card-name" title={site.site_name}>{site.site_name}</div>
-                    <div className="site-card-client" title={site.client_name}>
-                      {site.client_name ? `Client: ${site.client_name}` : 'Registered Client'}
-                      {site.location ? ` • ${site.location}` : ''}
-                    </div>
-                  </div>
-                  {isSelected && <span className="active-pill">Selected</span>}
-                </div>
-                <div className="site-card-footer">
-                  <span className={`works-badge ${stat.count > 0 ? 'has-items' : ''}`}>
-                    {stat.count} {stat.count === 1 ? 'extra work' : 'extra works'}
-                  </span>
-                  <span className="site-total-val">
-                    ₹{Number(stat.totalAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       {/* ==================================================================== */}
       {/* 2. Active Site Action Bar (Appears when specific site is chosen) */}
@@ -723,18 +557,7 @@ export default function AdditionalBillingModule() {
         </div>
       </div>
 
-      {/* Additional Work Expenses Header Banner (Matching Image 1) */}
-      <div className="additional-work-header-banner">
-        <div className="banner-title-wrap">
-          <span className="banner-highlight-text">Additional work Expenses</span>
-          <span className="banner-subtext">Itemized billing & expense tracking for extra client scope</span>
-        </div>
-        {selectedSiteFilter !== 'ALL' && (
-          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--accent-yellow-dark)' }}>
-            Showing records for: {selectedSiteFilter}
-          </span>
-        )}
-      </div>
+
 
       {/* Empty State for specific site with 0 records */}
       {selectedSiteFilter !== 'ALL' && enrichedBillings.length === 0 ? (

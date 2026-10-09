@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/constants/app_colors.dart';
+import 'add_purchase_screen.dart';
 
 class AdminPurchaseScreen extends StatefulWidget {
   const AdminPurchaseScreen({super.key});
@@ -10,684 +11,9 @@ class AdminPurchaseScreen extends StatefulWidget {
 }
 
 class _AdminPurchaseScreenState extends State<AdminPurchaseScreen> {
-  final _formKey = GlobalKey<FormState>();
-
-  String? _selectedSite;
-  String _department = 'Masonry';
-  String _supplierName = 'Shree Ganesh Bricks';
-  String _product = 'Red Bricks';
-  String? _enteredBy;
-  DateTime _purchaseDate = DateTime.now();
-
-  final List<String> _departmentList = ['Masonry', 'Electrical', 'Plumbing', 'Shuttering', 'Tiles', 'Carpentry', 'Painting'];
-  final List<String> _supplierList = ['Shree Ganesh Bricks', 'Ultratech Cement Supplies', 'Tata Tiscon Steel', 'Kajaria Tiles'];
-  final List<String> _productList = ['Red Bricks', '53 Grade OPC Cement', '12mm Steel Rods', 'Vitrified Floor Tiles 2x2'];
-
-  final _totalAmountController = TextEditingController();
-  final _paidAmountController = TextEditingController();
-
-  double get _totalPurchase => double.tryParse(_totalAmountController.text.replaceAll(',', '')) ?? 0.0;
-  double get _amountPaid => double.tryParse(_paidAmountController.text.replaceAll(',', '')) ?? 0.0;
-  double get _creditBalance => (_totalPurchase - _amountPaid).clamp(0.0, double.infinity);
-
-  @override
-  void initState() {
-    super.initState();
-    _totalAmountController.addListener(() => setState(() {}));
-    _paidAmountController.addListener(() => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _totalAmountController.dispose();
-    _paidAmountController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _showAddDepartmentDialog() async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.foundation_rounded, color: AppColors.darkCharcoal),
-            SizedBox(width: 8),
-            Text('Add New Department', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: 'Enter department name',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryYellow, foregroundColor: AppColors.darkCharcoal),
-            onPressed: () {
-              final val = controller.text.trim();
-              if (val.isNotEmpty) Navigator.pop(ctx, val);
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-    if (result != null && result.isNotEmpty) {
-      setState(() {
-        if (!_departmentList.contains(result)) {
-          _departmentList.add(result);
-        }
-        _department = result;
-      });
-    }
-  }
-
-  Future<void> _showAddSupplierDialog() async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.store_rounded, color: AppColors.darkCharcoal),
-            SizedBox(width: 8),
-            Text('Add New Supplier', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: 'Enter supplier name',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryYellow, foregroundColor: AppColors.darkCharcoal),
-            onPressed: () {
-              final val = controller.text.trim();
-              if (val.isNotEmpty) Navigator.pop(ctx, val);
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-    if (result != null && result.isNotEmpty) {
-      setState(() {
-        if (!_supplierList.contains(result)) {
-          _supplierList.add(result);
-        }
-        _supplierName = result;
-      });
-    }
-  }
-
-  Future<void> _showAddProductDialog() async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.inventory_2_rounded, color: AppColors.darkCharcoal),
-            SizedBox(width: 8),
-            Text('Add New Product / Material', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: 'Enter product or material name',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryYellow, foregroundColor: AppColors.darkCharcoal),
-            onPressed: () {
-              final val = controller.text.trim();
-              if (val.isNotEmpty) Navigator.pop(ctx, val);
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-    if (result != null && result.isNotEmpty) {
-      setState(() {
-        if (!_productList.contains(result)) {
-          _productList.add(result);
-        }
-        _product = result;
-      });
-    }
-  }
-
-  Future<void> _savePurchase() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedSite == null || _selectedSite!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a site')),
-      );
-      return;
-    }
-
-    try {
-      final poId = 'PO-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-      final dateStr = '${_purchaseDate.year}-${_purchaseDate.month.toString().padLeft(2, '0')}-${_purchaseDate.day.toString().padLeft(2, '0')}';
-      await FirebaseFirestore.instance.collection('purchases').doc(poId).set({
-        'purchase_id': poId,
-        'site_name': _selectedSite,
-        'department': _department,
-        'vendor_name': _supplierName,
-        'material_category': _product,
-        'order_date': dateStr,
-        'total_amount': _totalPurchase,
-        'amount_paid': _amountPaid,
-        'entered_by': _enteredBy ?? 'Suriya prakash',
-        'delivery_status': 'Ordered',
-        'payment_status': _amountPaid >= _totalPurchase && _totalPurchase > 0 ? 'Paid' : (_amountPaid > 0 ? 'Partially Paid' : 'Unpaid'),
-        'created_at': FieldValue.serverTimestamp(),
-      });
-
-      _totalAmountController.clear();
-      _paidAmountController.clear();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Material purchase saved successfully!'),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving purchase: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('sites').snapshots(),
-      builder: (context, snapshot) {
-        final siteDocs = snapshot.data?.docs ?? [];
-        final siteList = siteDocs.map((d) {
-          final m = d.data() as Map<String, dynamic>;
-          return (m['site_name'] ?? m['title'] ?? m['site_id'] ?? d.id).toString();
-        }).toList();
-
-        if (siteList.isNotEmpty && (_selectedSite == null || !siteList.contains(_selectedSite))) {
-          _selectedSite = siteList.first;
-        }
-
-        return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Title
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Inventory & Supply',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Material Purchase Entry',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Record material purchase in a few taps',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // Main Form Card Container
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.cardWhite,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.borderLight),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4)),
-                  ],
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Select Site
-                      _buildLabel('Select Site'),
-                      _buildDropdown(
-                        value: _selectedSite ?? (siteList.isNotEmpty ? siteList.first : 'No sites available'),
-                        items: siteList.isNotEmpty ? siteList : ['No sites available'],
-                        icon: Icons.location_on_rounded,
-                        onChanged: (val) => setState(() => _selectedSite = val!),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Department
-                      _buildLabel('Department'),
-                      _buildSearchableDropdown(
-                        title: 'Select Department',
-                        value: _department,
-                        items: _departmentList,
-                        icon: Icons.foundation_rounded,
-                        onChanged: (val) => setState(() => _department = val),
-                        onAddNew: _showAddDepartmentDialog,
-                        addNewLabel: '+ Add New Department',
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Supplier Name
-                      _buildLabel('Supplier Name'),
-                      _buildSearchableDropdown(
-                        title: 'Select Supplier Name',
-                        value: _supplierName,
-                        items: _supplierList,
-                        icon: Icons.store_rounded,
-                        onChanged: (val) => setState(() => _supplierName = val),
-                        onAddNew: _showAddSupplierDialog,
-                        addNewLabel: '+ Add New Supplier',
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Product / Material
-                      _buildLabel('Product / Material'),
-                      _buildSearchableDropdown(
-                        title: 'Select Product / Material',
-                        value: _product,
-                        items: _productList,
-                        icon: Icons.inventory_2_rounded,
-                        onChanged: (val) => setState(() => _product = val),
-                        onAddNew: _showAddProductDialog,
-                        addNewLabel: '+ Add New Product / Material',
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Date of Purchase
-                      _buildLabel('Date of Purchase'),
-                      InkWell(
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: _purchaseDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2030),
-                          );
-                          if (picked != null) setState(() => _purchaseDate = picked);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                          decoration: BoxDecoration(
-                            color: AppColors.cardWhite,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.borderLight),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.calendar_month_rounded, size: 18, color: AppColors.darkCharcoal),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    '${_purchaseDate.day} ${_getMonthName(_purchaseDate.month)} ${_purchaseDate.year}',
-                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
-                                  ),
-                                ],
-                              ),
-                              const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.textSecondary),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Total Purchase Amount (₹)
-                      _buildLabel('Total Purchase Amount (₹)'),
-                      TextFormField(
-                        controller: _totalAmountController,
-                        keyboardType: TextInputType.number,
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
-                        decoration: _inputDecoration('Enter total amount', Icons.currency_rupee_rounded),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Please enter total purchase amount' : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Amount Paid (₹)
-                      _buildLabel('Amount Paid (₹)'),
-                      TextFormField(
-                        controller: _paidAmountController,
-                        keyboardType: TextInputType.number,
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.green.shade800),
-                        decoration: _inputDecoration('Enter amount paid', Icons.account_balance_wallet_rounded),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Please enter amount paid' : null,
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // PURCHASE SUMMARY CARD
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.lightYellowBg,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.primaryYellow),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'PURCHASE SUMMARY',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.8),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                _buildSummaryItem('Total Purchase', '₹${_formatNumber(_totalPurchase)}', AppColors.textPrimary),
-                                Container(width: 1, height: 32, color: AppColors.primaryYellow.withValues(alpha: 0.5)),
-                                _buildSummaryItem('Total Paid', '₹${_formatNumber(_amountPaid)}', Colors.green.shade800),
-                                Container(width: 1, height: 32, color: AppColors.primaryYellow.withValues(alpha: 0.5)),
-                                _buildSummaryItem('Credit Balance', '₹${_formatNumber(_creditBalance)}', AppColors.darkYellow),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Info Notice Box
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blue.shade200),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.info_outline_rounded, color: Colors.blue, size: 20),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Credit Balance is auto-calculated. You can reduce this balance later using Payment section.',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: AppColors.textPrimary),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Entered By Dropdown
-                      _buildLabel('Entered By'),
-                      _buildDropdown(
-                        value: _enteredBy,
-                        hintText: 'Select Name',
-                        items: const ['Suriya Prakash', 'Bala'],
-                        icon: Icons.person_rounded,
-                        onChanged: (val) => setState(() => _enteredBy = val),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Save Material Purchase Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _savePurchase,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryYellow,
-                            foregroundColor: AppColors.darkCharcoal,
-                            elevation: 3,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.save_rounded, size: 20),
-                              SizedBox(width: 8),
-                              Text('Save Material Purchase', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
-      ),
-    );
-  }
-
-  Widget _buildDropdown({
-    String? value,
-    required List<String> items,
-    required IconData icon,
-    String? hintText,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.cardWhite,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          hint: hintText != null
-              ? Row(
-                  children: [
-                    Icon(icon, size: 18, color: AppColors.textSecondary),
-                    const SizedBox(width: 10),
-                    Text(
-                      hintText,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.textMuted),
-                    ),
-                  ],
-                )
-              : null,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.darkCharcoal),
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
-          onChanged: onChanged,
-          items: items.map((item) {
-            return DropdownMenuItem<String>(
-              value: item,
-              child: Row(
-                children: [
-                  Icon(icon, size: 18, color: AppColors.darkCharcoal),
-                  const SizedBox(width: 10),
-                  Text(item),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchableDropdown({
-    required String title,
-    required String? value,
-    required List<String> items,
-    required IconData icon,
-    String? hintText,
-    required ValueChanged<String> onChanged,
-    VoidCallback? onAddNew,
-    String? addNewLabel,
-  }) {
-    return InkWell(
-      onTap: () {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (ctx) => _SearchablePickerSheet(
-            title: title,
-            items: items,
-            selectedValue: value,
-            icon: icon,
-            onAddNew: onAddNew,
-            addNewLabel: addNewLabel,
-            onSelect: onChanged,
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.cardWhite,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderLight),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: AppColors.darkCharcoal),
-                const SizedBox(width: 10),
-                Text(
-                  value != null && value.isNotEmpty ? value : (hintText ?? 'Select Option'),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: value != null && value.isNotEmpty ? AppColors.textPrimary : AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-            const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.darkCharcoal),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryItem(String label, String value, Color valueColor) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w400, color: AppColors.textSecondary)),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: valueColor),
-          ),
-        ],
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint, IconData icon) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-        color: AppColors.textMuted,
-      ),
-      prefixIcon: Icon(icon, color: AppColors.textSecondary, size: 18),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.borderLight)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.borderLight)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryYellow, width: 1.5)),
-    );
-  }
-
-  String _formatNumber(double val) {
-    return val.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
-  }
-
-  String _getMonthName(int month) {
-    const months = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'];
-    return months[(month - 1) % 12];
-  }
-}
-
-class _SearchablePickerSheet extends StatefulWidget {
-  final String title;
-  final List<String> items;
-  final String? selectedValue;
-  final IconData icon;
-  final ValueChanged<String> onSelect;
-  final VoidCallback? onAddNew;
-  final String? addNewLabel;
-
-  const _SearchablePickerSheet({
-    required this.title,
-    required this.items,
-    required this.selectedValue,
-    required this.icon,
-    required this.onSelect,
-    this.onAddNew,
-    this.addNewLabel,
-  });
-
-  @override
-  State<_SearchablePickerSheet> createState() => _SearchablePickerSheetState();
-}
-
-class _SearchablePickerSheetState extends State<_SearchablePickerSheet> {
+  String _selectedSiteFilter = 'All';
   final TextEditingController _searchController = TextEditingController();
-  String _query = '';
+  String _searchQuery = '';
 
   @override
   void dispose() {
@@ -695,162 +21,1147 @@ class _SearchablePickerSheetState extends State<_SearchablePickerSheet> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final filteredItems = widget.items
-        .where((item) => item.toLowerCase().contains(_query.toLowerCase()))
-        .toList();
+  String _formatCurrency(num value) {
+    final intVal = value.toInt();
+    final str = intVal.abs().toString();
+    if (str.length <= 3) {
+      return '${value < 0 ? '-' : ''}₹$str';
+    }
+    final last3 = str.substring(str.length - 3);
+    final rest = str.substring(0, str.length - 3);
+    final parts = <String>[];
+    var pos = rest.length;
+    while (pos > 0) {
+      final start = (pos - 2) < 0 ? 0 : pos - 2;
+      parts.insert(0, rest.substring(start, pos));
+      pos -= 2;
+    }
+    return '${value < 0 ? '-' : ''}₹${parts.join(',')},$last3';
+  }
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.65,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        color: AppColors.cardWhite,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
-          // Drag handle indicator
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+  IconData _getDepartmentIcon(String dept) {
+    final lower = dept.toLowerCase();
+    if (lower.contains('mason')) return Icons.foundation_rounded;
+    if (lower.contains('electr')) return Icons.electric_bolt_rounded;
+    if (lower.contains('plumb')) return Icons.plumbing_rounded;
+    if (lower.contains('shutter') || lower.contains('center')) return Icons.grid_on_rounded;
+    if (lower.contains('tile')) return Icons.window_rounded;
+    if (lower.contains('carpent') || lower.contains('door')) return Icons.carpenter_rounded;
+    if (lower.contains('paint')) return Icons.format_paint_rounded;
+    return Icons.inventory_2_rounded;
+  }
+
+  bool _isSupplierMatch(String supA, String supB) {
+    if (supA.isEmpty || supB.isEmpty) return false;
+    final a = supA.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), ' ').trim();
+    final b = supB.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), ' ').trim();
+    if (a.isEmpty || b.isEmpty) return false;
+    if (a == b || a.contains(b) || b.contains(a)) return true;
+
+    final wordsA = a.split(RegExp(r'\s+')).where((w) => w.length >= 3).toList();
+    final wordsB = b.split(RegExp(r'\s+')).where((w) => w.length >= 3).toList();
+
+    int sharedCount = 0;
+    for (final wa in wordsA) {
+      for (final wb in wordsB) {
+        if (wa == wb) {
+          sharedCount++;
+          break;
+        }
+        if (wa.length >= 4 && wb.length >= 4) {
+          final lenA = wa.length > 5 ? 5 : wa.length;
+          final lenB = wb.length > 5 ? 5 : wb.length;
+          if (wa.substring(0, lenA) == wb.substring(0, lenB)) {
+            sharedCount++;
+            break;
+          }
+        }
+      }
+    }
+
+    const keyBrands = ['ganesh', 'ganesha', 'ultratech', 'tata', 'balaji', 'kajaria', 'asian', 'kaveri', 'smartline', 'supreme', 'jaguar'];
+    final hasKeyBrand = keyBrands.any((k) => a.contains(k) && b.contains(k));
+    if (hasKeyBrand) return true;
+
+    return sharedCount >= 2;
+  }
+
+  bool _isCategoryMatch(String pDept, String pMaterial, String expCategory) {
+    if (expCategory.isEmpty) return true;
+    final c = expCategory.toLowerCase().trim();
+    final d = pDept.toLowerCase().trim();
+    final m = pMaterial.toLowerCase().trim();
+
+    if (d == c || m == c || d.contains(c) || c.contains(d) || m.contains(c) || c.contains(m)) return true;
+
+    final isMasonryExp = c.contains('mason') || c.contains('brick') || c.contains('cement') || c.contains('sand');
+    final isMasonryPur = d.contains('mason') || m.contains('brick') || m.contains('cement') || m.contains('sand');
+    if (isMasonryExp && isMasonryPur) return true;
+
+    final isTilesExp = c.contains('tile') || c.contains('floor');
+    final isTilesPur = d.contains('tile') || m.contains('tile') || m.contains('floor');
+    if (isTilesExp && isTilesPur) return true;
+
+    final isSteelExp = c.contains('steel') || c.contains('tmt') || c.contains('structur');
+    final isSteelPur = d.contains('steel') || d.contains('structur') || m.contains('steel') || m.contains('tmt');
+    if (isSteelExp && isSteelPur) return true;
+
+    final isElecExp = c.contains('electr');
+    final isElecPur = d.contains('electr') || m.contains('electr') || m.contains('wiring');
+    if (isElecExp && isElecPur) return true;
+
+    final isPlumbExp = c.contains('plumb');
+    final isPlumbPur = d.contains('plumb') || m.contains('plumb') || m.contains('pipe');
+    if (isPlumbExp && isPlumbPur) return true;
+
+    final isPaintExp = c.contains('paint');
+    final isPaintPur = d.contains('paint') || m.contains('paint');
+    if (isPaintExp && isPaintPur) return true;
+
+    final isCarpExp = c.contains('carpent') || c.contains('door') || c.contains('window');
+    final isCarpPur = d.contains('carpent') || d.contains('door') || m.contains('door') || m.contains('wood');
+    if (isCarpExp && isCarpPur) return true;
+
+    return false;
+  }
+
+  void _showPurchaseDetailsSheet(Map<String, dynamic> data) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final poId = data['purchase_id'] ?? '-';
+        final site = data['site_name'] ?? '-';
+        final dept = data['department'] ?? '-';
+        final vendor = data['vendor_name'] ?? '-';
+        final product = data['material_category'] ?? '-';
+        final totalAmount = (num.tryParse(data['total_amount']?.toString() ?? '0') ?? 0);
+        final amountPaid = (num.tryParse(data['calculated_paid']?.toString() ?? data['amount_paid']?.toString() ?? '0') ?? 0);
+        final creditBalance = (num.tryParse(data['calculated_balance']?.toString() ?? '0') ?? (totalAmount - amountPaid)).clamp(0.0, double.infinity);
+        final date = data['order_date'] ?? '-';
+        final status = (data['calculated_status'] ?? data['payment_status'] ?? 'Unpaid').toString();
+        final enteredBy = data['entered_by'] ?? '-';
+        final deliveryStatus = data['delivery_status'] ?? 'Ordered';
+
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          const SizedBox(height: 12),
-
-          // Title & Close Button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                widget.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
-                onPressed: () => Navigator.pop(context),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        poId.toString(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        product.toString(),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.lightYellowBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primaryYellow),
+                    ),
+                    child: Text(
+                      _formatCurrency(totalAmount),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.darkCharcoal,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Divider(color: AppColors.borderLight, height: 1),
+              const SizedBox(height: 16),
+              _buildDetailRow(Icons.business_rounded, 'Site', site.toString()),
+              const SizedBox(height: 12),
+              _buildDetailRow(Icons.store_rounded, 'Supplier / Vendor', vendor.toString()),
+              const SizedBox(height: 12),
+              _buildDetailRow(Icons.foundation_rounded, 'Department', dept.toString()),
+              const SizedBox(height: 12),
+              _buildDetailRow(Icons.calendar_today_rounded, 'Order Date', date.toString()),
+              const SizedBox(height: 12),
+              _buildDetailRow(Icons.local_shipping_rounded, 'Delivery Status', deliveryStatus.toString()),
+              const SizedBox(height: 12),
+              _buildDetailRow(Icons.payments_rounded, 'Amount Paid', _formatCurrency(amountPaid)),
+              const SizedBox(height: 12),
+              _buildDetailRow(
+                Icons.account_balance_wallet_rounded,
+                'Credit Balance',
+                _formatCurrency(creditBalance),
+                valueColor: creditBalance > 0 ? AppColors.darkYellow : Colors.green.shade700,
+              ),
+              const SizedBox(height: 12),
+              _buildDetailRow(Icons.payment_rounded, 'Payment Status', status),
+              const SizedBox(height: 12),
+              _buildDetailRow(Icons.badge_rounded, 'Entered By', enteredBy.toString()),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.darkCharcoal,
+                    side: const BorderSide(color: AppColors.borderLight, width: 1.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
               ),
             ],
           ),
+        );
+      },
+    );
+  }
 
-          const SizedBox(height: 8),
+  Widget _buildDetailRow(IconData icon, String label, String value, {Color? valueColor}) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.textSecondary),
+        const SizedBox(width: 10),
+        Text(
+          '$label: ',
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textMuted),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: valueColor ?? AppColors.textPrimary,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
 
-          // Add New Button if provided
-          if (widget.onAddNew != null) ...[
-            InkWell(
-              onTap: () {
-                Navigator.pop(context);
-                widget.onAddNew!();
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('sites').snapshots(),
+          builder: (context, sitesSnap) {
+            final siteDocs = sitesSnap.data?.docs ?? [];
+            final siteNames = <String>{'All'};
+            for (final doc in siteDocs) {
+              final d = doc.data() as Map<String, dynamic>;
+              final name = (d['site_name'] ?? d['title'] ?? d['site_id'] ?? '').toString();
+              if (name.isNotEmpty) siteNames.add(name);
+            }
+
+            return StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('purchases').snapshots(),
+              builder: (context, purchasesSnap) {
+                if (purchasesSnap.connectionState == ConnectionState.waiting && !purchasesSnap.hasData) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: AppColors.primaryYellow),
+                  );
+                }
+
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('expenses').snapshots(),
+                  builder: (context, expensesSnap) {
+                    final rawDocs = purchasesSnap.data?.docs ?? [];
+                    for (final doc in rawDocs) {
+                      final d = doc.data() as Map<String, dynamic>;
+                      final name = (d['site_name'] ?? '').toString();
+                      if (name.isNotEmpty) siteNames.add(name);
+                    }
+                    final sortedSites = ['All', ...siteNames.where((s) => s != 'All').toList()..sort()];
+
+                    final List<Map<String, dynamic>> allPurchases = [];
+                    for (final doc in rawDocs) {
+                      final data = Map<String, dynamic>.from(doc.data() as Map);
+                      data['id'] = doc.id;
+                      final notes = (data['notes'] ?? '').toString();
+                      if (notes.startsWith('Supplier:') || data['is_expense'] == true || data['category'] == 'Material') {
+                        continue;
+                      }
+                      allPurchases.add(data);
+                    }
+
+                    // 1. Collect Material Expenses from expenses collection
+                    final rawExpenseDocs = expensesSnap.data?.docs ?? [];
+                    final List<Map<String, dynamic>> materialExpenses = [];
+                    for (final doc in rawExpenseDocs) {
+                      final d = Map<String, dynamic>.from(doc.data() as Map);
+                      d['id'] = doc.id;
+                      final cat = (d['category'] ?? '').toString().toLowerCase();
+                      if (cat.contains('material')) {
+                        materialExpenses.add(d);
+                      }
+                    }
+
+                    // 2. Group expenses by site
+                    final Map<String, List<Map<String, dynamic>>> expensesBySite = {};
+                    for (final exp in materialExpenses) {
+                      final site = (exp['site_name'] ?? '').toString().trim();
+                      expensesBySite.putIfAbsent(site, () => []).add(exp);
+                    }
+
+                    // 3. Group purchases by site
+                    final Map<String, List<Map<String, dynamic>>> purchasesBySite = {};
+                    for (final po in allPurchases) {
+                      final site = (po['site_name'] ?? '').toString().trim();
+                      purchasesBySite.putIfAbsent(site, () => []).add(po);
+                    }
+
+                    // 4. Calculate paid and balance for each site separately
+                    for (final entry in purchasesBySite.entries) {
+                      final siteName = entry.key;
+                      final sitePos = entry.value;
+                      final siteExps = expensesBySite[siteName] ?? [];
+
+                      // Create mutable copy of expense amounts with supplier and work_category
+                      final expensePool = siteExps.map((e) {
+                        String supplier = (e['supplier_name'] ?? e['vendor_name'] ?? '').toString();
+                        if (supplier.isEmpty) {
+                          final notes = (e['notes'] ?? '').toString();
+                          if (notes.toLowerCase().contains('supplier:')) {
+                            final idx = notes.toLowerCase().indexOf('supplier:');
+                            supplier = notes.substring(idx + 9).trim();
+                          } else {
+                            supplier = notes.trim();
+                          }
+                        }
+                        return {
+                          'amount': (num.tryParse(e['amount']?.toString() ?? '0') ?? 0).toDouble(),
+                          'supplier': supplier,
+                          'work_category': (e['work_category'] ?? '').toString(),
+                        };
+                      }).toList();
+
+                      // Sort site purchases by date ascending for sequential allocation
+                      sitePos.sort((a, b) {
+                        final aDate = a['order_date']?.toString() ?? '';
+                        final bDate = b['order_date']?.toString() ?? '';
+                        return aDate.compareTo(bDate);
+                      });
+
+                      // Deduct matching expenses with SAME SUPPLIER and SAME CATEGORY
+                      for (final po in sitePos) {
+                        final tot = (num.tryParse(po['total_amount']?.toString() ?? '0') ?? 0).toDouble();
+                        final vendor = (po['vendor_name'] ?? '').toString().trim();
+                        final dept = (po['department'] ?? '').toString().trim();
+                        final material = (po['material_category'] ?? '').toString().trim();
+                        double allocated = 0;
+
+                        for (final exp in expensePool) {
+                          final expRem = exp['amount'] as double;
+                          if (expRem > 0) {
+                            final expSup = exp['supplier'] as String;
+                            final expCat = exp['work_category'] as String;
+
+                            final supplierMatches = _isSupplierMatch(vendor, expSup);
+                            final categoryMatches = _isCategoryMatch(dept, material, expCat);
+
+                            if (supplierMatches && categoryMatches) {
+                              final needed = tot - allocated;
+                              if (needed > 0) {
+                                final take = needed < expRem ? needed : expRem;
+                                allocated += take;
+                                exp['amount'] = expRem - take;
+                              }
+                            }
+                          }
+                        }
+
+                        final finalPaid = allocated.clamp(0.0, tot);
+                        final finalBalance = (tot - finalPaid).clamp(0.0, double.infinity);
+
+                        po['calculated_paid'] = finalPaid;
+                        po['calculated_balance'] = finalBalance;
+                        po['calculated_status'] = finalBalance == 0 && tot > 0
+                            ? 'Paid'
+                            : (finalPaid > 0 ? 'Partially Paid' : 'Unpaid');
+                      }
+                    }
+
+                    // Sort newest first for display
+                    allPurchases.sort((a, b) {
+                      final aTime = a['created_at'];
+                      final bTime = b['created_at'];
+                      if (aTime is Timestamp && bTime is Timestamp) {
+                        return bTime.compareTo(aTime);
+                      }
+                      final aDate = a['order_date']?.toString() ?? '';
+                      final bDate = b['order_date']?.toString() ?? '';
+                      return bDate.compareTo(aDate);
+                    });
+
+                    // Apply Filters
+                    final filteredPurchases = allPurchases.where((po) {
+                      // Site filter
+                      if (_selectedSiteFilter != 'All') {
+                        final s = (po['site_name'] ?? '').toString();
+                        if (s != _selectedSiteFilter) return false;
+                      }
+                      // Search query
+                      if (_searchQuery.isNotEmpty) {
+                        final q = _searchQuery.toLowerCase();
+                        final prod = (po['material_category'] ?? '').toString().toLowerCase();
+                        final vendor = (po['vendor_name'] ?? '').toString().toLowerCase();
+                        final dept = (po['department'] ?? '').toString().toLowerCase();
+                        final site = (po['site_name'] ?? '').toString().toLowerCase();
+                        final poId = (po['purchase_id'] ?? '').toString().toLowerCase();
+                        final entered = (po['entered_by'] ?? '').toString().toLowerCase();
+                        if (!prod.contains(q) &&
+                            !vendor.contains(q) &&
+                            !dept.contains(q) &&
+                            !site.contains(q) &&
+                            !poId.contains(q) &&
+                            !entered.contains(q)) {
+                          return false;
+                        }
+                      }
+                      return true;
+                    }).toList();
+
+                    // Compute Summary Stats
+                    double totalPurchase = 0;
+                    double totalPaid = 0;
+                    double creditBalance = 0;
+
+                    for (final po in filteredPurchases) {
+                      final tot = (num.tryParse(po['total_amount']?.toString() ?? '0') ?? 0).toDouble();
+                      final paid = (num.tryParse(po['calculated_paid']?.toString() ?? '0') ?? 0).toDouble();
+                      final bal = (num.tryParse(po['calculated_balance']?.toString() ?? '0') ?? 0).toDouble();
+                      totalPurchase += tot;
+                      totalPaid += paid;
+                      creditBalance += bal;
+                    }
+
+                return CustomScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    // Top Header & Metrics
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Page Title Banner
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'PURCHASE ORDERS',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textMuted,
+                                        letterSpacing: 1.1,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Order History',
+                                      style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.textPrimary,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.darkCharcoal,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.shopping_cart_rounded, color: AppColors.primaryYellow, size: 14),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '${filteredPurchases.length} Orders',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Summary Metric Cards Container
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.darkCharcoal,
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'TOTAL MATERIAL PURCHASES',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white60,
+                                          letterSpacing: 0.8,
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryYellow.withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Text(
+                                          'LIVE',
+                                          style: TextStyle(
+                                            color: AppColors.primaryYellow,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _formatCurrency(totalPurchase),
+                                    style: const TextStyle(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Container(height: 1, color: Colors.white12),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 8,
+                                              height: 8,
+                                              decoration: BoxDecoration(
+                                                color: Colors.green.shade400,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                const Text(
+                                                  'Total Paid',
+                                                  style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
+                                                ),
+                                                Text(
+                                                  _formatCurrency(totalPaid),
+                                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(width: 1, height: 28, color: Colors.white12),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 8,
+                                              height: 8,
+                                              decoration: const BoxDecoration(
+                                                color: AppColors.primaryYellow,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                const Text(
+                                                  'Credit Balance',
+                                                  style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
+                                                ),
+                                                Text(
+                                                  _formatCurrency(creditBalance),
+                                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Search Field
+                            TextField(
+                              controller: _searchController,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                              decoration: InputDecoration(
+                                hintText: 'Search product, supplier, site, PO...',
+                                hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 20),
+                                suffixIcon: _searchQuery.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textSecondary),
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          setState(() => _searchQuery = '');
+                                        },
+                                      )
+                                    : null,
+                                filled: true,
+                                fillColor: Colors.white,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: AppColors.borderLight),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: AppColors.borderLight),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: AppColors.primaryYellow, width: 1.5),
+                                ),
+                              ),
+                              onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            // Site Filter Dropdown & Status Chips
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Site Filter Dropdown
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: AppColors.borderLight),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.04),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: sortedSites.contains(_selectedSiteFilter) ? _selectedSiteFilter : 'All',
+                                      isExpanded: true,
+                                      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.darkCharcoal, size: 24),
+                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          setState(() => _selectedSiteFilter = val);
+                                        }
+                                      },
+                                      items: sortedSites.map((site) {
+                                        final isSelected = (sortedSites.contains(_selectedSiteFilter) ? _selectedSiteFilter : 'All') == site;
+                                        return DropdownMenuItem<String>(
+                                          value: site,
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 28,
+                                                height: 28,
+                                                decoration: BoxDecoration(
+                                                  color: isSelected ? AppColors.lightYellowBg : AppColors.inputBackground,
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: Icon(
+                                                  site == 'All' ? Icons.apartment_rounded : Icons.business_rounded,
+                                                  size: 16,
+                                                  color: isSelected ? AppColors.darkYellow : AppColors.textSecondary,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Text(
+                                                  site == 'All' ? 'All Sites' : site,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                                    color: isSelected ? AppColors.darkCharcoal : AppColors.textPrimary,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Purchase Order List Items or Empty State
+                    if (filteredPurchases.isEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 32, 16, 90),
+                          child: Container(
+                            padding: const EdgeInsets.all(32),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppColors.borderLight),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 64,
+                                  height: 64,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.lightYellowBg,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: AppColors.primaryYellow.withValues(alpha: 0.5)),
+                                  ),
+                                  child: const Icon(
+                                    Icons.shopping_cart_outlined,
+                                    size: 32,
+                                    color: AppColors.darkCharcoal,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'No Purchase Orders Found',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Tap the + button at the bottom right to record a material purchase.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final po = filteredPurchases[index];
+                              final product = (po['material_category'] ?? 'Material').toString();
+                              final vendor = (po['vendor_name'] ?? 'Supplier').toString();
+                              final site = (po['site_name'] ?? '-').toString();
+                              final dept = (po['department'] ?? 'Masonry').toString();
+                              final totalAmount = (num.tryParse(po['total_amount']?.toString() ?? '0') ?? 0);
+                              final amountPaid = (num.tryParse(po['calculated_paid']?.toString() ?? po['amount_paid']?.toString() ?? '0') ?? 0);
+                              final creditBal = (num.tryParse(po['calculated_balance']?.toString() ?? '0') ?? (totalAmount - amountPaid)).clamp(0.0, double.infinity);
+                              final date = (po['order_date'] ?? '').toString();
+                              final status = (po['calculated_status'] ?? po['payment_status'] ?? 'Unpaid').toString();
+                              final enteredBy = (po['entered_by'] ?? '').toString();
+
+                              Color statusColor;
+                              Color statusBg;
+                              if (status.toLowerCase() == 'paid') {
+                                statusColor = Colors.green.shade800;
+                                statusBg = Colors.green.shade50;
+                              } else if (status.toLowerCase().contains('partial')) {
+                                statusColor = AppColors.darkYellow;
+                                statusBg = AppColors.lightYellowBg;
+                              } else {
+                                statusColor = Colors.red.shade700;
+                                statusBg = Colors.red.shade50;
+                              }
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: AppColors.borderLight),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.03),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => _showPurchaseDetailsSheet(po),
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Top Row: Dept Icon + Product Title & Total Amount
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Container(
+                                                width: 42,
+                                                height: 42,
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.lightYellowBg,
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: AppColors.primaryYellow,
+                                                    width: 1.2,
+                                                  ),
+                                                ),
+                                                child: Icon(
+                                                  _getDepartmentIcon(dept),
+                                                  color: AppColors.darkCharcoal,
+                                                  size: 20,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      product,
+                                                      style: const TextStyle(
+                                                        fontSize: 15,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: AppColors.textPrimary,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Row(
+                                                      children: [
+                                                        const Icon(Icons.business_rounded, size: 13, color: AppColors.textMuted),
+                                                        const SizedBox(width: 4),
+                                                        Expanded(
+                                                          child: Text(
+                                                            site,
+                                                            style: const TextStyle(
+                                                              fontSize: 12,
+                                                              fontWeight: FontWeight.w600,
+                                                              color: AppColors.textSecondary,
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                _formatCurrency(totalAmount),
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: AppColors.darkCharcoal,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+
+                                          const SizedBox(height: 12),
+                                          const Divider(height: 1, color: AppColors.borderLight),
+                                          const SizedBox(height: 10),
+
+                                          // Middle Badges: Supplier, Status, Date
+                                          Row(
+                                            children: [
+                                              // Supplier Pill
+                                              Flexible(
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.inputBackground,
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      const Icon(Icons.store_rounded, size: 13, color: AppColors.textSecondary),
+                                                      const SizedBox(width: 4),
+                                                      Flexible(
+                                                        child: Text(
+                                                          vendor,
+                                                          style: const TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.w700,
+                                                            color: AppColors.textSecondary,
+                                                          ),
+                                                          overflow: TextOverflow.ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+
+                                              // Payment Status Badge
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: statusBg,
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: Text(
+                                                  status,
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: statusColor,
+                                                  ),
+                                                ),
+                                              ),
+                                              const Spacer(),
+
+                                              // Date
+                                              Row(
+                                                children: [
+                                                  const Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.textMuted),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    date,
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: AppColors.textSecondary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+
+                                          const SizedBox(height: 10),
+
+                                          // Payment Breakdown Card
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF8FAFC),
+                                              borderRadius: BorderRadius.circular(10),
+                                              border: Border.all(color: AppColors.borderLight),
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    const Text(
+                                                      'Paid: ',
+                                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textMuted),
+                                                    ),
+                                                    Text(
+                                                      _formatCurrency(amountPaid),
+                                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.green.shade700),
+                                                    ),
+                                                  ],
+                                                ),
+                                                Container(width: 1, height: 16, color: AppColors.borderLight),
+                                                Row(
+                                                  children: [
+                                                    const Text(
+                                                      'Credit Balance: ',
+                                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textMuted),
+                                                    ),
+                                                    Text(
+                                                      _formatCurrency(creditBal),
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: creditBal > 0 ? AppColors.darkYellow : Colors.green.shade700,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+
+                                          // Footer: Entered By
+                                          if (enteredBy.isNotEmpty) ...[
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Text(
+                                                  'Entered by: $enteredBy',
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: AppColors.textMuted,
+                                                  ),
+                                                ),
+                                                const Icon(
+                                                  Icons.chevron_right_rounded,
+                                                  size: 16,
+                                                  color: AppColors.textMuted,
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            childCount: filteredPurchases.length,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
               },
-              borderRadius: BorderRadius.circular(12),
+            );
+          },
+        );
+      },
+    ),
+
+        // Bottom-Right Add Purchase Pop Icon (Floating Action Button)
+        Positioned(
+          right: 20,
+          bottom: 20,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AddPurchaseScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(30),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                width: 58,
+                height: 58,
                 decoration: BoxDecoration(
-                  color: AppColors.lightYellowBg,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primaryYellow, width: 1.5),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.add_circle_outline_rounded, color: AppColors.darkCharcoal, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      widget.addNewLabel ?? '+ Add New',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
+                  color: AppColors.primaryYellow,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: AppColors.primaryYellow.withValues(alpha: 0.4),
+                      blurRadius: 14,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: AppColors.darkCharcoal,
+                  size: 32,
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-          ],
-
-          // Search Box
-          TextField(
-            controller: _searchController,
-            autofocus: false,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-            decoration: InputDecoration(
-              hintText: 'Search ${widget.title.replaceAll('Select ', '')}...',
-              hintStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.textMuted),
-              prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 20),
-              suffixIcon: _query.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textSecondary),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _query = '');
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: AppColors.lightYellowBg.withValues(alpha: 0.4),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.borderLight)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.borderLight)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryYellow, width: 1.5)),
-            ),
-            onChanged: (val) => setState(() => _query = val),
           ),
-
-          const SizedBox(height: 12),
-
-          // List Items
-          Expanded(
-            child: filteredItems.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No matching options found',
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                    ),
-                  )
-                : ListView.separated(
-                    itemCount: filteredItems.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.borderLight),
-                    itemBuilder: (context, index) {
-                      final item = filteredItems[index];
-                      final isSelected = item == widget.selectedValue;
-
-                      return ListTile(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        tileColor: isSelected ? AppColors.lightYellowBg : null,
-                        leading: Icon(
-                          widget.icon,
-                          size: 20,
-                          color: isSelected ? AppColors.darkCharcoal : AppColors.textSecondary,
-                        ),
-                        title: Text(
-                          item,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                            color: isSelected ? AppColors.darkCharcoal : AppColors.textPrimary,
-                          ),
-                        ),
-                        trailing: isSelected
-                            ? const Icon(Icons.check_circle_rounded, color: AppColors.darkCharcoal, size: 20)
-                            : null,
-                        onTap: () {
-                          widget.onSelect(item);
-                          Navigator.pop(context);
-                        },
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
-

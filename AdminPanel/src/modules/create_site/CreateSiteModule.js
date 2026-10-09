@@ -120,18 +120,33 @@ export const isExpenseMatchingSite = (exp, site) => {
   return false;
 };
 
-const getInitialFloorStages = (floorTitle = 'GROUND FLOOR') => [
-  { sno: 1, stage_name: 'MOBILIZATION ADVANCE (16%)', amount: '', work_schedule: '' },
-  { sno: 2, stage_name: 'ON COMPLETION OF BASEMENT', amount: '', work_schedule: '' },
-  { sno: 3, stage_name: "ON COMPLETION OF 7' LINTEL LEVEL RCC WORK", amount: '', work_schedule: '' },
-  { sno: 4, stage_name: `ON COMPLETION OF ${floorTitle} ROOF CONCRETE`, amount: '', work_schedule: '' },
-  { sno: 5, stage_name: 'ON COMPLETION OF MEP CONCEALED WORK', amount: '', work_schedule: '' },
-  { sno: 6, stage_name: 'ON COMPLETION OF WALL PLASTERING', amount: '', work_schedule: '' },
-  { sno: 7, stage_name: 'ON COMPLETION OF TILE LAYING', amount: '', work_schedule: '' },
-  { sno: 8, stage_name: 'ON COMPLETION OF UPVC WINDOW & DOOR FIXING', amount: '', work_schedule: '' },
-  { sno: 9, stage_name: 'ON COMPLETION OF INTERIOR WALL PAINTING', amount: '', work_schedule: '' },
-  { sno: 10, stage_name: 'ON COMPLETION OF ALL FINISHING WORKS', amount: '', work_schedule: '' }
-];
+const getInitialFloorStages = (floorTitle = 'GROUND FLOOR') => {
+  const isGround = String(floorTitle || '').toUpperCase().includes('GROUND');
+  const upper = String(floorTitle || '').toUpperCase();
+  const roofStageName = upper.includes('GROUND')
+    ? 'ON COMPLETION OF GROUND FLOOR ROOF CONCRETE'
+    : `ON COMPLETION OF ${upper} ROOF CONCRETE`;
+
+  const nonGroundStages = [
+    { sno: 1, stage_name: "ON COMPLETION OF 7' LINTEL LEVEL RCC WORK", amount: '', work_schedule: '' },
+    { sno: 2, stage_name: roofStageName, amount: '', work_schedule: '' },
+    { sno: 3, stage_name: 'ON COMPLETION OF MEP CONCEALED WORK', amount: '', work_schedule: '' },
+    { sno: 4, stage_name: 'ON COMPLETION OF WALL PLASTERING', amount: '', work_schedule: '' },
+    { sno: 5, stage_name: 'ON COMPLETION OF TILE LAYING', amount: '', work_schedule: '' },
+    { sno: 6, stage_name: 'ON COMPLETION OF UPVC WINDOW & DOOR FIXING', amount: '', work_schedule: '' },
+    { sno: 7, stage_name: 'ON COMPLETION OF INTERIOR WALL PAINTING', amount: '', work_schedule: '' },
+    { sno: 8, stage_name: 'ON COMPLETION OF ALL FINISHING WORKS', amount: '', work_schedule: '' }
+  ];
+
+  if (isGround) {
+    return [
+      { sno: 1, stage_name: 'MOBILIZATION ADVANCE (16%)', amount: '', work_schedule: '' },
+      { sno: 2, stage_name: 'ON COMPLETION OF BASEMENT', amount: '', work_schedule: '' },
+      ...nonGroundStages.map((b, i) => ({ ...b, sno: i + 3 }))
+    ];
+  }
+  return nonGroundStages;
+};
 
 
 const getAvailableFloorTitles = (numFloorsSetting = 'G + 1 Floor', totalSectionsCount = 1, currentTitle = '') => {
@@ -420,27 +435,51 @@ export default function CreateSiteModule() {
 
     setEditSelectedFloorFilter('ALL');
     if (existingBreakup && Array.isArray(existingBreakup.floors) && existingBreakup.floors.length > 0) {
-      setEditFloorSections(existingBreakup.floors.map((f, idx) => ({
-        id: f.id || `floor_${idx + 1}`,
-        floorTitle: f.floorTitle || f.floor_title || `FLOOR ${idx + 1}`,
-        milestones: Array.isArray(f.milestones) ? f.milestones.map((m, mIdx) => ({
+      setEditFloorSections(existingBreakup.floors.map((f, idx) => {
+        const floorTitle = f.floorTitle || f.floor_title || `FLOOR ${idx + 1}`;
+        const isGround = String(floorTitle).toUpperCase().includes('GROUND');
+        let milestones = Array.isArray(f.milestones) ? f.milestones.map((m, mIdx) => ({
           sno: m.sno || mIdx + 1,
           stage_name: m.stage_name || '',
           amount: m.amount !== undefined && m.amount !== null ? String(m.amount) : '',
           work_schedule: m.work_schedule || m.target_date || ''
-        })) : getInitialFloorStages(`FLOOR ${idx + 1}`)
-      })));
+        })) : getInitialFloorStages(floorTitle);
+
+        if (!isGround) {
+          milestones = milestones.filter(m => {
+            const name = String(m.stage_name || '').toUpperCase();
+            return !name.includes('MOBILIZATION ADVANCE') && !name.includes('COMPLETION OF BASEMENT');
+          }).map((m, mIdx) => ({ ...m, sno: mIdx + 1 }));
+        }
+
+        return {
+          id: f.id || `floor_${idx + 1}`,
+          floorTitle,
+          milestones
+        };
+      }));
     } else if (existingBreakup && Array.isArray(existingBreakup.milestones) && existingBreakup.milestones.length > 0) {
+      const floorTitle = existingBreakup.floor_title || 'GROUND FLOOR';
+      const isGround = String(floorTitle).toUpperCase().includes('GROUND');
+      let milestones = existingBreakup.milestones.map((m, mIdx) => ({
+        sno: m.sno || mIdx + 1,
+        stage_name: m.stage_name || '',
+        amount: m.amount !== undefined && m.amount !== null ? String(m.amount) : '',
+        work_schedule: m.work_schedule || m.target_date || ''
+      }));
+
+      if (!isGround) {
+        milestones = milestones.filter(m => {
+          const name = String(m.stage_name || '').toUpperCase();
+          return !name.includes('MOBILIZATION ADVANCE') && !name.includes('COMPLETION OF BASEMENT');
+        }).map((m, mIdx) => ({ ...m, sno: mIdx + 1 }));
+      }
+
       setEditFloorSections([
         {
           id: 'floor_1',
-          floorTitle: existingBreakup.floor_title || 'GROUND FLOOR',
-          milestones: existingBreakup.milestones.map((m, mIdx) => ({
-            sno: m.sno || mIdx + 1,
-            stage_name: m.stage_name || '',
-            amount: m.amount !== undefined && m.amount !== null ? String(m.amount) : '',
-            work_schedule: m.work_schedule || m.target_date || ''
-          }))
+          floorTitle,
+          milestones
         }
       ]);
     } else {
@@ -546,9 +585,9 @@ export default function CreateSiteModule() {
       const updated = [...prev];
       const upper = (val || '').toUpperCase();
       const updatedMilestones = (updated[fIdx].milestones || []).map(m => {
-        if (m.sno === 4 && (m.stage_name?.includes('ROOF CONCRETE') || m.stage_name === 'ON COMPLETION OF ROOF CONCRETE')) {
+        if (m.stage_name && (m.stage_name.includes('ROOF CONCRETE') || m.stage_name === 'ON COMPLETION OF ROOF CONCRETE')) {
           if (upper.includes('GROUND')) {
-            return { ...m, stage_name: 'ON COMPLETION OF ROOF CONCRETE' };
+            return { ...m, stage_name: 'ON COMPLETION OF GROUND FLOOR ROOF CONCRETE' };
           } else {
             return { ...m, stage_name: `ON COMPLETION OF ${upper} ROOF CONCRETE` };
           }
@@ -2208,12 +2247,48 @@ export default function CreateSiteModule() {
           // Breakup floors
           let floorsList = [];
           if (siteBreakup && Array.isArray(siteBreakup.floors) && siteBreakup.floors.length > 0) {
-            floorsList = siteBreakup.floors;
+            floorsList = siteBreakup.floors.map((floor, fIdx) => {
+              const fTitle = floor.floor_title || floor.floorTitle || `FLOOR ${fIdx + 1}`;
+              const isGround = String(fTitle).toUpperCase().includes('GROUND');
+              const milestones = (floor.milestones || []).filter(m => {
+                if (!isGround) {
+                  const name = String(m.stage_name || '').toUpperCase();
+                  if (name.includes('MOBILIZATION ADVANCE') || name.includes('COMPLETION OF BASEMENT')) {
+                    return false;
+                  }
+                }
+                return true;
+              }).map((m, mIdx) => ({
+                ...m,
+                sno: mIdx + 1
+              }));
+              return {
+                ...floor,
+                floor_title: fTitle,
+                floorTitle: fTitle,
+                milestones
+              };
+            });
           } else if (siteBreakup && Array.isArray(siteBreakup.milestones) && siteBreakup.milestones.length > 0) {
+            const fTitle = siteBreakup.floor_title || 'GROUND FLOOR';
+            const isGround = String(fTitle).toUpperCase().includes('GROUND');
+            const milestones = (siteBreakup.milestones || []).filter(m => {
+              if (!isGround) {
+                const name = String(m.stage_name || '').toUpperCase();
+                if (name.includes('MOBILIZATION ADVANCE') || name.includes('COMPLETION OF BASEMENT')) {
+                  return false;
+                }
+              }
+              return true;
+            }).map((m, mIdx) => ({
+              ...m,
+              sno: mIdx + 1
+            }));
             floorsList = [{
               id: 'floor_1',
-              floor_title: siteBreakup.floor_title || 'GROUND FLOOR',
-              milestones: siteBreakup.milestones
+              floor_title: fTitle,
+              floorTitle: fTitle,
+              milestones
             }];
           }
 

@@ -178,27 +178,7 @@ class _AdminPaymentScreenState extends State<AdminPaymentScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Client
-                          _buildLabel('Client'),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.borderLight),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.person_outline_rounded, size: 20, color: AppColors.darkCharcoal),
-                                const SizedBox(width: 10),
-                                Text(
-                                  _selectedClient ?? 'Client',
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
+
 
                           // Date
                           _buildLabel('Date'),

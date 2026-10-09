@@ -1,16 +1,11 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, DollarSign, Filter, Eye, User, FileSpreadsheet, FileText } from 'lucide-react';
+import { Trash2, DollarSign, Filter, Eye, User, FileSpreadsheet, FileText } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import DataTable from '../../components/common/DataTable/DataTable';
 import Modal from '../../components/common/Modal/Modal';
 import CustomSelect from '../../components/common/CustomSelect/CustomSelect';
 import CSVImportModal from '../../components/common/CSVImportModal/CSVImportModal';
 import './SiteExpensesModule.css';
-
-const EXPENSE_TYPES = [
-  "Labour",
-  "Other Expense"
-];
 
 const getNormalizedCategory = (cat) => {
   if (!cat) return "Labour";
@@ -20,18 +15,6 @@ const getNormalizedCategory = (cat) => {
   }
   return "Other Expense";
 };
-
-const WORK_CATEGORIES = [
-  "Masonry",
-  "Electrical",
-  "Plumbing",
-  "Shuttering",
-  "Tiles",
-  "Carpentry",
-  "Painting"
-];
-
-const PAYMENT_MODES = ["Cash", "UPI", "Bank Transfer", "Cheque"];
 
 const ENTERED_BY_OPTIONS = ["Suriya prakash", "Bala"];
 
@@ -59,15 +42,11 @@ const SAMPLE_EXPENSE_ROW = {
 };
 
 export default function SiteExpensesModule() {
-  const { expenses, projects, sites = [], addExpense, deleteExpense, importExpenses, exportToXLS, exportToPDF } = useApp();
+  const { expenses, projects, sites = [], deleteExpense, importExpenses, exportToXLS, exportToPDF } = useApp();
 
   const [selectedSiteName, setSelectedSiteName] = useState('ALL');
-  const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [selectedWorkCategory, setSelectedWorkCategory] = useState('ALL');
-  const [selectedPaymentMode, setSelectedPaymentMode] = useState('ALL');
   const [selectedEnteredBy, setSelectedEnteredBy] = useState('ALL');
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [viewingDetailExpense, setViewingDetailExpense] = useState(null);
 
@@ -80,46 +59,17 @@ export default function SiteExpensesModule() {
     ].filter(Boolean))
   );
 
-  const [formData, setFormData] = useState({
-    site_name: siteList[0] || '',
-    category: 'Labour',
-    work_category: 'Masonry',
-    amount: '',
-    date: new Date().toISOString().split('T')[0],
-    payment_mode: 'Bank Transfer',
-    entered_by: 'Suriya prakash',
-    notes: '',
-    receipt_attachment: ''
-  });
-
   const filteredExpenses = expenses.filter(e => {
+    // Only display Labour expenses in Labour Expense Tracker
+    const cat = String(e.category || '').toLowerCase();
+    if (cat.includes('material')) return false;
+
     const matchesSite = selectedSiteName === 'ALL' || e.site_name === selectedSiteName;
-    const normCat = getNormalizedCategory(e.category);
-    const matchesCategory = selectedCategory === 'ALL' || normCat === selectedCategory;
-    const matchesWorkCategory = selectedWorkCategory === 'ALL' || (e.work_category || 'Masonry') === selectedWorkCategory;
-    const matchesPaymentMode = selectedPaymentMode === 'ALL' || e.payment_mode === selectedPaymentMode;
     const matchesEnteredBy = selectedEnteredBy === 'ALL' || (e.entered_by || 'Suriya prakash') === selectedEnteredBy;
-    return matchesSite && matchesCategory && matchesWorkCategory && matchesPaymentMode && matchesEnteredBy;
+    return matchesSite && matchesEnteredBy;
   });
 
   const totalExpenseSum = filteredExpenses.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    addExpense(formData);
-    setIsModalOpen(false);
-    setFormData({
-      site_name: siteList[0] || '',
-      category: 'Labour',
-      work_category: 'Masonry',
-      amount: '',
-      date: new Date().toISOString().split('T')[0],
-      payment_mode: 'Bank Transfer',
-      entered_by: 'Suriya prakash',
-      notes: '',
-      receipt_attachment: ''
-    });
-  };
 
   const columns = [
     {
@@ -218,13 +168,10 @@ export default function SiteExpensesModule() {
     <div className="expenses-container">
       <div className="leads-header-row">
         <div>
-          <h1 className="dashboard-title">Site Expense Tracker</h1>
+          <h1 className="dashboard-title">Labour Expense Tracker</h1>
           <p className="dashboard-subtitle">Log, categorize, and aggregate daily site operational expenses</p>
         </div>
         <div className="header-action-group">
-          <button className="btn-primary" onClick={() => setIsModalOpen(true)}>
-            <Plus size={16} /> Log New Expense
-          </button>
           <div className="csv-action-group">
             <button
               className="btn-secondary"
@@ -271,50 +218,7 @@ export default function SiteExpensesModule() {
           ]}
         />
 
-        <CustomSelect
-          icon={Filter}
-          label="EXPENSE TYPE:"
-          value={selectedCategory}
-          onChange={(val) => setSelectedCategory(val)}
-          options={[
-            { value: "ALL", label: `All Expense Types (${expenses.length})`, badge: expenses.length },
-            ...EXPENSE_TYPES.map(type => ({
-              value: type,
-              label: type,
-              badge: expenses.filter(e => getNormalizedCategory(e.category) === type).length
-            }))
-          ]}
-        />
 
-        <CustomSelect
-          icon={Filter}
-          label="WORK CATEGORY:"
-          value={selectedWorkCategory}
-          onChange={(val) => setSelectedWorkCategory(val)}
-          options={[
-            { value: "ALL", label: `All Work Categories (${expenses.length})`, badge: expenses.length },
-            ...WORK_CATEGORIES.map(work => ({
-              value: work,
-              label: work,
-              badge: expenses.filter(e => (e.work_category || 'Masonry') === work).length
-            }))
-          ]}
-        />
-
-        <CustomSelect
-          icon={Filter}
-          label="PAYMENT MODE:"
-          value={selectedPaymentMode}
-          onChange={(val) => setSelectedPaymentMode(val)}
-          options={[
-            { value: "ALL", label: `All Payment Modes (${expenses.length})`, badge: expenses.length },
-            ...PAYMENT_MODES.map(mode => ({
-              value: mode,
-              label: mode,
-              badge: expenses.filter(e => (e.payment_mode || 'Cash') === mode).length
-            }))
-          ]}
-        />
 
         <CustomSelect
           icon={Filter}
@@ -341,112 +245,7 @@ export default function SiteExpensesModule() {
         onRowClick={(row) => setViewingDetailExpense(row)}
       />
 
-      {/* Create Expense Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Log Site Operational Expense"
-      >
-        <form onSubmit={handleSubmit} className="form-grid">
-          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-            <label className="form-label">Construction Site Name *</label>
-            <select
-              className="form-input"
-              value={formData.site_name}
-              onChange={(e) => setFormData({ ...formData, site_name: e.target.value })}
-            >
-              {siteList.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
 
-          <div className="form-group">
-            <label className="form-label">Expense Type *</label>
-            <select
-              className="form-input"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            >
-              {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Work Category *</label>
-            <select
-              className="form-input"
-              value={formData.work_category || 'Masonry'}
-              onChange={(e) => setFormData({ ...formData, work_category: e.target.value })}
-            >
-              {WORK_CATEGORIES.map(w => <option key={w} value={w}>{w}</option>)}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Amount (₹) *</label>
-            <input
-              type="number"
-              required
-              className="form-input"
-              placeholder="e.g. 50000"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Date *</label>
-            <input
-              type="date"
-              required
-              className="form-input"
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Payment Mode</label>
-            <select
-              className="form-input"
-              value={formData.payment_mode}
-              onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
-            >
-              {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Entered By *</label>
-            <select
-              className="form-input"
-              value={formData.entered_by}
-              onChange={(e) => setFormData({ ...formData, entered_by: e.target.value })}
-            >
-              {ENTERED_BY_OPTIONS.map(name => <option key={name} value={name}>{name}</option>)}
-            </select>
-          </div>
-
-          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-            <label className="form-label">Notes / Remarks</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="e.g. Weekly mason payout"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            />
-          </div>
-
-          <div style={{ gridColumn: '1 / -1', marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-primary">
-              Log Expense
-            </button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Expense Detail Modal */}
       {viewingDetailExpense && (

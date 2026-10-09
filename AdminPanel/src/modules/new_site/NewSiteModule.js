@@ -43,20 +43,6 @@ const DEFAULT_BUDGET_ROWS = [
   { sno: 10, description: 'Additional Work', estimated_amount: '', expense_amount: '' }
 ];
 
-// Predefined 10 Payment Breakup Milestones
-const DEFAULT_PAYMENT_STAGES = [
-  { sno: 1, stage_name: 'MOBILIZATION ADVANCE (16%)', amount: '', work_schedule: '' },
-  { sno: 2, stage_name: 'ON COMPLETION OF BASEMENT', amount: '', work_schedule: '' },
-  { sno: 3, stage_name: "ON COMPLETION OF 7' LINTEL LEVEL RCC WORK", amount: '', work_schedule: '' },
-  { sno: 4, stage_name: 'ON COMPLETION OF GROUND FLOOR ROOF CONCRETE', amount: '', work_schedule: '' },
-  { sno: 5, stage_name: 'ON COMPLETION OF MEP CONCEALED WORK', amount: '', work_schedule: '' },
-  { sno: 6, stage_name: 'ON COMPLETION OF WALL PLASTERING', amount: '', work_schedule: '' },
-  { sno: 7, stage_name: 'ON COMPLETION OF TILE LAYING', amount: '', work_schedule: '' },
-  { sno: 8, stage_name: 'ON COMPLETION OF UPVC WINDOW & DOOR FIXING', amount: '', work_schedule: '' },
-  { sno: 9, stage_name: 'ON COMPLETION OF INTERIOR WALL PAINTING', amount: '', work_schedule: '' },
-  { sno: 10, stage_name: 'ON COMPLETION OF ALL FINISHING WORKS', amount: '', work_schedule: '' }
-];
-
 const DEFAULT_FLOOR_NAMES = [
   'GROUND FLOOR',
   'FIRST FLOOR',
@@ -67,19 +53,31 @@ const DEFAULT_FLOOR_NAMES = [
 ];
 
 const getInitialFloorStages = (floorName = 'GROUND FLOOR') => {
-  return DEFAULT_PAYMENT_STAGES.map((s, idx) => {
-    let stageName = s.stage_name;
-    const upper = (floorName || '').toUpperCase();
-    if (s.sno === 4 && upper && !upper.includes('GROUND')) {
-      stageName = `ON COMPLETION OF ${upper} ROOF CONCRETE`;
-    }
-    return {
-      sno: idx + 1,
-      stage_name: stageName,
-      amount: '',
-      work_schedule: s.work_schedule
-    };
-  });
+  const isGround = String(floorName || '').toUpperCase().includes('GROUND');
+  const upper = (floorName || '').toUpperCase();
+  const roofName = upper.includes('GROUND')
+    ? 'ON COMPLETION OF GROUND FLOOR ROOF CONCRETE'
+    : `ON COMPLETION OF ${upper} ROOF CONCRETE`;
+
+  const nonGroundStages = [
+    { sno: 1, stage_name: "ON COMPLETION OF 7' LINTEL LEVEL RCC WORK", amount: '', work_schedule: '' },
+    { sno: 2, stage_name: roofName, amount: '', work_schedule: '' },
+    { sno: 3, stage_name: 'ON COMPLETION OF MEP CONCEALED WORK', amount: '', work_schedule: '' },
+    { sno: 4, stage_name: 'ON COMPLETION OF WALL PLASTERING', amount: '', work_schedule: '' },
+    { sno: 5, stage_name: 'ON COMPLETION OF TILE LAYING', amount: '', work_schedule: '' },
+    { sno: 6, stage_name: 'ON COMPLETION OF UPVC WINDOW & DOOR FIXING', amount: '', work_schedule: '' },
+    { sno: 7, stage_name: 'ON COMPLETION OF INTERIOR WALL PAINTING', amount: '', work_schedule: '' },
+    { sno: 8, stage_name: 'ON COMPLETION OF ALL FINISHING WORKS', amount: '', work_schedule: '' }
+  ];
+
+  if (isGround) {
+    return [
+      { sno: 1, stage_name: 'MOBILIZATION ADVANCE (16%)', amount: '', work_schedule: '' },
+      { sno: 2, stage_name: 'ON COMPLETION OF BASEMENT', amount: '', work_schedule: '' },
+      ...nonGroundStages.map((s, idx) => ({ ...s, sno: idx + 3 }))
+    ];
+  }
+  return nonGroundStages;
 };
 
 
@@ -257,9 +255,9 @@ export default function NewSiteModule() {
       const updated = [...prev];
       const upper = (value || '').toUpperCase();
       const updatedMilestones = (updated[floorIndex].milestones || []).map(m => {
-        if (m.sno === 4 && (m.stage_name?.includes('ROOF CONCRETE') || m.stage_name === 'ON COMPLETION OF ROOF CONCRETE')) {
+        if (m.stage_name && (m.stage_name.includes('ROOF CONCRETE') || m.stage_name === 'ON COMPLETION OF ROOF CONCRETE')) {
           if (upper.includes('GROUND')) {
-            return { ...m, stage_name: 'ON COMPLETION OF ROOF CONCRETE' };
+            return { ...m, stage_name: 'ON COMPLETION OF GROUND FLOOR ROOF CONCRETE' };
           } else {
             return { ...m, stage_name: `ON COMPLETION OF ${upper} ROOF CONCRETE` };
           }
@@ -320,7 +318,7 @@ export default function NewSiteModule() {
 
   const handleResetFloorMilestones = (floorIndex) => {
     const currentFloor = floorSections[floorIndex];
-    if (window.confirm(`Reset milestones for "${currentFloor.floorTitle || `Floor #${floorIndex + 1}`}" back to default 10 construction stages?`)) {
+    if (window.confirm(`Reset milestones for "${currentFloor.floorTitle || `Floor #${floorIndex + 1}`}" back to default construction stages?`)) {
       setFloorSections(prev => {
         const updated = [...prev];
         updated[floorIndex] = {

@@ -62,6 +62,8 @@ ios/Flutter/flutter_assets/
 ios/Runner.xcworkspace/
 ios/DerivedData/
 macos/Flutter/ephemeral/
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
 
 # Secrets & Environment Files
 .env

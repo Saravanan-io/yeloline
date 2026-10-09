@@ -711,6 +711,7 @@ export const AppProvider = ({ children }) => {
       order_date: purchaseData.order_date || new Date().toISOString().split('T')[0],
       total_amount: total,
       amount_paid: paid,
+      entered_by: purchaseData.entered_by || "Suriya prakash",
       delivery_status: purchaseData.delivery_status || "Ordered",
       payment_status: payStatus,
       invoice_number: purchaseData.invoice_number || `INV-PO-${301 + purchases.length}`
@@ -724,10 +725,11 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const deletePurchase = async (purchase_id) => {
-    setPurchases(prev => prev.filter(p => p.purchase_id !== purchase_id && p.id !== purchase_id));
+  const deletePurchase = async (purchase_id, docId = null) => {
+    const targetId = docId || purchase_id;
+    setPurchases(prev => prev.filter(p => p.purchase_id !== purchase_id && p.id !== purchase_id && p.id !== targetId));
     try {
-      await deleteFirestoreDoc(COLLECTIONS.PURCHASES, purchase_id);
+      await deleteFirestoreDoc(COLLECTIONS.PURCHASES, targetId);
     } catch (e) {
       console.error('Firebase deletePurchase error:', e);
     }

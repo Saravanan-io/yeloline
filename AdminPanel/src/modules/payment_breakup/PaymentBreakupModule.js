@@ -27,7 +27,6 @@ export default function PaymentBreakupModule() {
     sites = [],
     paymentBreakups = [],
     savePaymentBreakup,
-    DEFAULT_PAYMENT_BREAKUP_STAGES = [],
     exportToXLS,
     exportToPDF
   } = useApp();
@@ -66,31 +65,44 @@ export default function PaymentBreakupModule() {
   const [isSaving, setIsSaving] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  // Helper to create blank 10-milestone template (Amount & Work Schedule empty)
-  const getBlankDefaultMilestones = useCallback(() => {
-    const base = (DEFAULT_PAYMENT_BREAKUP_STAGES && DEFAULT_PAYMENT_BREAKUP_STAGES.length > 0)
-      ? DEFAULT_PAYMENT_BREAKUP_STAGES
-      : [
-          { sno: 1, stage_name: "MOBILIZATION ADVANCE (16%)", amount: "", work_schedule: "" },
-          { sno: 2, stage_name: "ON COMPLETION OF BASEMENT", amount: "", work_schedule: "" },
-          { sno: 3, stage_name: "ON COMPLETION OF 7' LINTEL LEVEL RCC WORK", amount: "", work_schedule: "" },
-          { sno: 4, stage_name: "ON COMPLETION OF GROUND FLOOR ROOF CONCRETE", amount: "", work_schedule: "" },
-          { sno: 5, stage_name: "ON COMPLETION OF MEP CONCEALED WORK", amount: "", work_schedule: "" },
-          { sno: 6, stage_name: "ON COMPLETION OF WALL PLASTERING", amount: "", work_schedule: "" },
-          { sno: 7, stage_name: "ON COMPLETION OF TILE LAYING", amount: "", work_schedule: "" },
-          { sno: 8, stage_name: "ON COMPLETION OF UPVC WINDOW & DOOR FIXING", amount: "", work_schedule: "" },
-          { sno: 9, stage_name: "ON COMPLETION OF INTERIOR WALL PAINTING", amount: "", work_schedule: "" },
-          { sno: 10, stage_name: "ON COMPLETION OF ALL FINISHING WORKS", amount: "", work_schedule: "" }
-        ];
+  // Helper to create blank milestone template (Ground floor: 10 stages, other floors: 8 stages)
+  const getBlankDefaultMilestones = useCallback((floorTitle = 'GROUND FLOOR') => {
+    const isGround = String(floorTitle || '').toUpperCase().includes('GROUND');
+    const upper = String(floorTitle || '').toUpperCase();
+    const roofName = upper.includes('GROUND')
+      ? 'ON COMPLETION OF GROUND FLOOR ROOF CONCRETE'
+      : `ON COMPLETION OF ${upper} ROOF CONCRETE`;
 
-    return base.map((item, index) => ({
-      id: `stage_${index + 1}`,
+    const nonGroundStages = [
+      { sno: 1, stage_name: "ON COMPLETION OF 7' LINTEL LEVEL RCC WORK", amount: "", work_schedule: "" },
+      { sno: 2, stage_name: roofName, amount: "", work_schedule: "" },
+      { sno: 3, stage_name: "ON COMPLETION OF MEP CONCEALED WORK", amount: "", work_schedule: "" },
+      { sno: 4, stage_name: "ON COMPLETION OF WALL PLASTERING", amount: "", work_schedule: "" },
+      { sno: 5, stage_name: "ON COMPLETION OF TILE LAYING", amount: "", work_schedule: "" },
+      { sno: 6, stage_name: "ON COMPLETION OF UPVC WINDOW & DOOR FIXING", amount: "", work_schedule: "" },
+      { sno: 7, stage_name: "ON COMPLETION OF INTERIOR WALL PAINTING", amount: "", work_schedule: "" },
+      { sno: 8, stage_name: "ON COMPLETION OF ALL FINISHING WORKS", amount: "", work_schedule: "" }
+    ];
+
+    const groundStages = [
+      { sno: 1, stage_name: "MOBILIZATION ADVANCE (16%)", amount: "", work_schedule: "" },
+      { sno: 2, stage_name: "ON COMPLETION OF BASEMENT", amount: "", work_schedule: "" },
+      ...nonGroundStages.map((item, index) => ({
+        ...item,
+        sno: index + 3
+      }))
+    ];
+
+    const stages = isGround ? groundStages : nonGroundStages;
+
+    return stages.map((item, index) => ({
+      id: `stage_${Date.now()}_${index + 1}_${Math.random().toString(36).substr(2, 4)}`,
       sno: index + 1,
       stage_name: item.stage_name,
       amount: "", // Kept blank - admin needs to edit it
       work_schedule: "" // Kept blank - admin needs to edit it
     }));
-  }, [DEFAULT_PAYMENT_BREAKUP_STAGES]);
+  }, []);
 
   // Load existing breakup when site changes or when paymentBreakups load
   useEffect(() => {
@@ -98,17 +110,43 @@ export default function PaymentBreakupModule() {
     const existing = paymentBreakups.find(b => b.site_name === selectedSite || b.id === selectedSite);
 
     if (existing && Array.isArray(existing.floors) && existing.floors.length > 0) {
-      setFloors(existing.floors.map((f, idx) => ({
-        id: f.id || `floor_${idx + 1}`,
-        floor_title: f.floor_title || `FLOOR ${idx + 1}`,
-        milestones: Array.isArray(f.milestones) ? f.milestones : []
-      })));
+      setFloors(existing.floors.map((f, idx) => {
+        const floorTitle = f.floor_title || f.floorTitle || `FLOOR ${idx + 1}`;
+        const isGround = String(floorTitle).toUpperCase().includes('GROUND');
+        let milestones = Array.isArray(f.milestones) ? f.milestones : [];
+        if (!isGround) {
+          milestones = milestones.filter(m => {
+            const name = String(m.stage_name || '').toUpperCase();
+            return !name.includes('MOBILIZATION ADVANCE') && !name.includes('COMPLETION OF BASEMENT');
+          }).map((m, mIdx) => ({
+            ...m,
+            sno: mIdx + 1
+          }));
+        }
+        return {
+          id: f.id || `floor_${idx + 1}`,
+          floor_title: floorTitle,
+          milestones
+        };
+      }));
     } else if (existing && Array.isArray(existing.milestones) && existing.milestones.length > 0) {
+      const floorTitle = existing.floor_title || 'GROUND FLOOR';
+      const isGround = String(floorTitle).toUpperCase().includes('GROUND');
+      let milestones = existing.milestones;
+      if (!isGround) {
+        milestones = milestones.filter(m => {
+          const name = String(m.stage_name || '').toUpperCase();
+          return !name.includes('MOBILIZATION ADVANCE') && !name.includes('COMPLETION OF BASEMENT');
+        }).map((m, mIdx) => ({
+          ...m,
+          sno: mIdx + 1
+        }));
+      }
       setFloors([
         {
           id: 'floor_1',
-          floor_title: existing.floor_title || 'GROUND FLOOR',
-          milestones: existing.milestones
+          floor_title: floorTitle,
+          milestones
         }
       ]);
     } else {
@@ -116,7 +154,7 @@ export default function PaymentBreakupModule() {
         {
           id: 'floor_1',
           floor_title: 'GROUND FLOOR',
-          milestones: getBlankDefaultMilestones()
+          milestones: getBlankDefaultMilestones('GROUND FLOOR')
         }
       ]);
     }
@@ -150,7 +188,18 @@ export default function PaymentBreakupModule() {
   const handleFloorTitleChange = (floorIndex, value) => {
     setFloors(prev => {
       const next = [...prev];
-      next[floorIndex] = { ...next[floorIndex], floor_title: value };
+      const upper = (value || '').toUpperCase();
+      const updatedMilestones = (next[floorIndex].milestones || []).map(m => {
+        if (m.stage_name && (m.stage_name.includes('ROOF CONCRETE') || m.stage_name === 'ON COMPLETION OF ROOF CONCRETE')) {
+          if (upper.includes('GROUND')) {
+            return { ...m, stage_name: 'ON COMPLETION OF GROUND FLOOR ROOF CONCRETE' };
+          } else {
+            return { ...m, stage_name: `ON COMPLETION OF ${upper} ROOF CONCRETE` };
+          }
+        }
+        return m;
+      });
+      next[floorIndex] = { ...next[floorIndex], floor_title: value, milestones: updatedMilestones };
       return next;
     });
   };
@@ -208,15 +257,17 @@ export default function PaymentBreakupModule() {
     });
   };
 
-  // Reset floor to default 10 blank fields
+  // Reset floor to default blank fields
   const handleResetFloorToDefault = (floorIndex) => {
     const floor = floors[floorIndex];
-    if (window.confirm(`Are you sure you want to reset "${floor.floor_title || `Floor #${floorIndex + 1}`}" to the default blank 10-stage schedule?`)) {
+    const isGround = String(floor.floor_title || '').toUpperCase().includes('GROUND');
+    const stageCountText = isGround ? '10-stage' : '8-stage';
+    if (window.confirm(`Are you sure you want to reset "${floor.floor_title || `Floor #${floorIndex + 1}`}" to the default blank ${stageCountText} schedule?`)) {
       setFloors(prev => {
         const next = [...prev];
         next[floorIndex] = {
           ...next[floorIndex],
-          milestones: getBlankDefaultMilestones()
+          milestones: getBlankDefaultMilestones(next[floorIndex].floor_title || 'GROUND FLOOR')
         };
         return next;
       });
@@ -234,7 +285,7 @@ export default function PaymentBreakupModule() {
       {
         id: `floor_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
         floor_title: defaultTitle,
-        milestones: getBlankDefaultMilestones()
+        milestones: getBlankDefaultMilestones(defaultTitle)
       }
     ]);
   };
@@ -251,12 +302,12 @@ export default function PaymentBreakupModule() {
   };
 
   const handleResetToDefault = () => {
-    if (window.confirm("Are you sure you want to reset this site's payment breakup to the default blank 10-stage schedule? Any unsaved edits will be cleared.")) {
+    if (window.confirm("Are you sure you want to reset this site's payment breakup to the default blank schedule? Any unsaved edits will be cleared.")) {
       setFloors([
         {
           id: 'floor_1',
           floor_title: 'GROUND FLOOR',
-          milestones: getBlankDefaultMilestones()
+          milestones: getBlankDefaultMilestones('GROUND FLOOR')
         }
       ]);
     }

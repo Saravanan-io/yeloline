@@ -35,13 +35,24 @@ class _ClientPortalPaymentBreakupTabState extends State<ClientPortalPaymentBreak
 
   List<Map<String, dynamic>> _generateDefaultStagesForFloor(String floorName) {
     final upper = floorName.trim().toUpperCase();
-    return _defaultMilestoneTemplates.map((m) {
+    final isGround = upper.contains('GROUND');
+
+    final templates = _defaultMilestoneTemplates.where((m) {
+      if (!isGround) {
+        final sno = m['sno'];
+        if (sno == '1' || sno == '2') return false;
+      }
+      return true;
+    }).toList();
+
+    int counter = 1;
+    return templates.map((m) {
       String stageName = m['stage_name']!;
       if (m['sno'] == '4' && upper.isNotEmpty && !upper.contains('GROUND')) {
         stageName = 'ON COMPLETION OF $upper ROOF CONCRETE';
       }
       return {
-        'sno': int.parse(m['sno']!),
+        'sno': counter++,
         'stage_name': stageName,
         'amount': 0,
         'work_schedule': '',
@@ -121,14 +132,27 @@ class _ClientPortalPaymentBreakupTabState extends State<ClientPortalPaymentBreak
       return rawList.map((f) {
         if (f is Map) {
           final floorMap = Map<String, dynamic>.from(f);
+          final floorTitle = (floorMap['floor_title'] ?? floorMap['floorTitle'] ?? 'GROUND FLOOR').toString();
+          final isGround = floorTitle.toUpperCase().contains('GROUND');
           final milestonesRaw = (floorMap['milestones'] as List?) ?? [];
-          final milestones = milestonesRaw.map((m) {
+          var milestones = milestonesRaw.map((m) {
             if (m is Map) return Map<String, dynamic>.from(m);
             return <String, dynamic>{};
-          }).toList();
+          }).where((m) => m.isNotEmpty).toList();
+
+          if (!isGround) {
+            milestones = milestones.where((m) {
+              final name = (m['stage_name'] ?? '').toString().toUpperCase();
+              return !name.contains('MOBILIZATION ADVANCE') && !name.contains('COMPLETION OF BASEMENT');
+            }).toList();
+            for (int i = 0; i < milestones.length; i++) {
+              milestones[i]['sno'] = i + 1;
+            }
+          }
+
           return {
             'id': floorMap['id'] ?? 'floor',
-            'floor_title': floorMap['floor_title'] ?? floorMap['floorTitle'] ?? 'GROUND FLOOR',
+            'floor_title': floorTitle,
             'total_amount': floorMap['total_amount'] ?? _sumMilestones(milestones),
             'milestones': milestones,
           };
@@ -140,11 +164,23 @@ class _ClientPortalPaymentBreakupTabState extends State<ClientPortalPaymentBreak
     // B) If payment_breakups document has a flat milestones list (single floor):
     if (breakupData != null && breakupData['milestones'] is List && (breakupData['milestones'] as List).isNotEmpty) {
       final milestonesRaw = breakupData['milestones'] as List;
-      final milestones = milestonesRaw.map((m) {
+      var milestones = milestonesRaw.map((m) {
         if (m is Map) return Map<String, dynamic>.from(m);
         return <String, dynamic>{};
-      }).toList();
+      }).where((m) => m.isNotEmpty).toList();
       final title = breakupData['floor_title']?.toString() ?? 'GROUND FLOOR';
+      final isGround = title.toUpperCase().contains('GROUND');
+
+      if (!isGround) {
+        milestones = milestones.where((m) {
+          final name = (m['stage_name'] ?? '').toString().toUpperCase();
+          return !name.contains('MOBILIZATION ADVANCE') && !name.contains('COMPLETION OF BASEMENT');
+        }).toList();
+        for (int i = 0; i < milestones.length; i++) {
+          milestones[i]['sno'] = i + 1;
+        }
+      }
+
       return [
         {
           'id': 'floor_1',

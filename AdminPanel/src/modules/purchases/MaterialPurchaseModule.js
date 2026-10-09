@@ -1,60 +1,20 @@
 import React, { useState } from 'react';
 import {
-  Plus,
-  ShoppingBag,
-  Truck,
-  CheckCircle2,
   Filter,
   Eye,
   Trash2,
   FileSpreadsheet,
   FileText,
-  MapPin,
-  Building2,
-  Store,
-  Box,
-  Calendar,
-  Wallet,
   User
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import DataTable from '../../components/common/DataTable/DataTable';
 import Modal from '../../components/common/Modal/Modal';
-import MetricCard from '../../components/common/MetricCard/MetricCard';
 import CustomSelect from '../../components/common/CustomSelect/CustomSelect';
 import CSVImportModal from '../../components/common/CSVImportModal/CSVImportModal';
 import './MaterialPurchaseModule.css';
 
-const DEPARTMENTS = [
-  "Masonry",
-  "Structure",
-  "Electrical",
-  "Plumbing",
-  "Shuttering",
-  "Tiles",
-  "Carpentry",
-  "Painting"
-];
 
-const SUPPLIERS = [
-  "Shree Ganesh Bricks",
-  "UltraTech Cement Depot Erode",
-  "Sri Balaji TMT Steel Traders",
-  "Kaveri Red Bricks Yard",
-  "Kajaria Ceramics Gallery",
-  "SmartLine Systems Depot"
-];
-
-const PRODUCTS = [
-  "Red Bricks",
-  "Cement",
-  "Steel / TMT Bars",
-  "Sand & Aggregates",
-  "Tiles & Flooring",
-  "Paint",
-  "Electrical Wiring",
-  "Plumbing Fittings"
-];
 
 const ENTERED_BY_OPTIONS = ["Suriya prakash", "Bala"];
 
@@ -85,72 +45,69 @@ const SAMPLE_PURCHASE_ROW = {
 export default function MaterialPurchaseModule() {
   const {
     purchases = [],
+    expenses = [],
     sites = [],
-    addPurchase,
     deletePurchase,
+    deleteExpense,
     importPurchases,
     exportToXLS,
     exportToPDF
   } = useApp();
 
   const [selectedSiteFilter, setSelectedSiteFilter] = useState('ALL');
-  const [selectedMaterialFilter, setSelectedMaterialFilter] = useState('ALL');
   const [selectedEnteredByFilter, setSelectedEnteredByFilter] = useState('ALL');
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [viewingDetailPurchase, setViewingDetailPurchase] = useState(null);
 
+  // Material Expense Tracker displays genuine material expenses from expenses collection
+  const allMaterialExpenses = React.useMemo(() => {
+    const list = [];
+    (expenses || []).forEach(exp => {
+      const cat = String(exp.category || '').toLowerCase();
+      if (cat.includes('material')) {
+        const supplierName = (exp.notes && exp.notes.includes('Supplier:'))
+          ? exp.notes.replace('Supplier:', '').trim()
+          : (exp.notes || 'Supplier');
+
+        list.push({
+          id: exp.id || exp.expense_id,
+          purchase_id: exp.expense_id,
+          expense_id: exp.expense_id,
+          site_name: exp.site_name,
+          department: exp.work_category || 'Masonry',
+          vendor_name: supplierName,
+          material_category: exp.work_category || 'Material',
+          order_date: exp.date,
+          total_amount: exp.amount,
+          amount_paid: exp.amount,
+          entered_by: exp.entered_by || 'Suriya prakash',
+          payment_status: 'Paid',
+          delivery_status: 'Delivered',
+          notes: exp.notes
+        });
+      }
+    });
+
+    return list;
+  }, [expenses]);
+
   // Extracted registered site names
   const allSitesList = Array.from(new Set(
-    (sites || []).map(s => s.name || s.title || s.site_name).filter(Boolean)
+    [
+      ...(sites || []).map(s => s.name || s.title || s.site_name),
+      ...allMaterialExpenses.map(p => p.site_name || p.project_name)
+    ].filter(Boolean)
   ));
 
-  const [formData, setFormData] = useState({
-    site_name: allSitesList[0] || '',
-    department: 'Masonry',
-    vendor_name: '',
-    material_category: 'Red Bricks',
-    order_date: new Date().toISOString().split('T')[0],
-    total_amount: '',
-    amount_paid: '',
-    entered_by: 'Suriya prakash'
-  });
-
-  const filteredPurchases = purchases.filter(p => {
+  const filteredPurchases = allMaterialExpenses.filter(p => {
     const matchesSite = selectedSiteFilter === 'ALL' || (p.site_name || p.project_name) === selectedSiteFilter;
-    const matchesMaterial = selectedMaterialFilter === 'ALL' || p.material_category === selectedMaterialFilter || p.department === selectedMaterialFilter;
     const matchesEnteredBy = selectedEnteredByFilter === 'ALL' || (p.entered_by || 'Suriya prakash') === selectedEnteredByFilter;
-    return matchesSite && matchesMaterial && matchesEnteredBy;
+    return matchesSite && matchesEnteredBy;
   });
-
-  const totalPOAmount = filteredPurchases.reduce((acc, p) => acc + Number(p.total_amount || 0), 0);
-  const totalPaidAmount = filteredPurchases.reduce((acc, p) => acc + Number(p.amount_paid || 0), 0);
-  const totalBalanceDue = Math.max(0, totalPOAmount - totalPaidAmount);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    addPurchase({
-      ...formData,
-      total_amount: Number(formData.total_amount || 0),
-      amount_paid: Number(formData.amount_paid || 0),
-      entered_by: formData.entered_by || 'Suriya prakash'
-    });
-    setIsModalOpen(false);
-    setFormData({
-      site_name: allSitesList[0] || '',
-      department: 'Masonry',
-      vendor_name: '',
-      material_category: 'Red Bricks',
-      order_date: new Date().toISOString().split('T')[0],
-      total_amount: '',
-      amount_paid: '',
-      entered_by: 'Suriya prakash'
-    });
-  };
 
   const columns = [
     {
-      header: "PO ID",
+      header: "Expense ID",
       key: "purchase_id",
       render: (r) => <span style={{ fontWeight: '700', color: 'var(--accent-yellow-dark)' }}>{r.purchase_id}</span>
     },
@@ -226,8 +183,14 @@ export default function MaterialPurchaseModule() {
           </button>
           <button
             style={{ background: 'var(--danger-bg)', border: 'none', color: 'var(--danger-red)', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer' }}
-            onClick={() => deletePurchase(r.purchase_id)}
-            title="Delete Purchase Order"
+            onClick={() => {
+              if (r.purchase_id && String(r.purchase_id).startsWith('EXP-')) {
+                deleteExpense(r.purchase_id);
+              } else {
+                deletePurchase(r.purchase_id);
+              }
+            }}
+            title="Delete Entry"
           >
             <Trash2 size={14} />
           </button>
@@ -240,13 +203,10 @@ export default function MaterialPurchaseModule() {
     <div className="purchases-container">
       <div className="leads-header-row">
         <div>
-          <h1 className="dashboard-title">Material Purchase Orders</h1>
+          <h1 className="dashboard-title">Material Expense Tracker</h1>
           <p className="dashboard-subtitle">Record and track construction material orders and site purchase invoices</p>
         </div>
         <div className="header-action-group">
-          <button className="btn-primary" onClick={() => setIsModalOpen(true)}>
-            <Plus size={16} /> Create Purchase Order
-          </button>
           <div className="csv-action-group">
             <button
               className="btn-secondary"
@@ -264,28 +224,7 @@ export default function MaterialPurchaseModule() {
         </div>
       </div>
 
-      {/* PO Summary Metrics */}
-      <div className="po-summary-grid">
-        <MetricCard
-          title="Total PO Spend"
-          value={`₹${(totalPOAmount / 100000).toFixed(2)} L`}
-          icon={ShoppingBag}
-          subtext={`${filteredPurchases.length} Purchase Orders`}
-          highlight
-        />
-        <MetricCard
-          title="Total Amount Paid"
-          value={`₹${(totalPaidAmount / 100000).toFixed(2)} L`}
-          icon={CheckCircle2}
-          subtext="Vendor payments settled"
-        />
-        <MetricCard
-          title="Balance Payable"
-          value={`₹${(totalBalanceDue / 100000).toFixed(2)} L`}
-          icon={Truck}
-          subtext="Pending vendor balance"
-        />
-      </div>
+
 
       {/* Filter Bar */}
       <div className="leads-filter-bar" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
@@ -304,20 +243,7 @@ export default function MaterialPurchaseModule() {
           ]}
         />
 
-        <CustomSelect
-          icon={Filter}
-          label="MATERIAL / PRODUCT:"
-          value={selectedMaterialFilter}
-          onChange={(val) => setSelectedMaterialFilter(val)}
-          options={[
-            { value: "ALL", label: `All Materials (${purchases.length})`, badge: purchases.length },
-            ...PRODUCTS.map(m => ({
-              value: m,
-              label: m,
-              badge: purchases.filter(p => p.material_category === m).length
-            }))
-          ]}
-        />
+
 
         <CustomSelect
           icon={Filter}
@@ -344,154 +270,7 @@ export default function MaterialPurchaseModule() {
         onRowClick={(row) => setViewingDetailPurchase(row)}
       />
 
-      {/* Create Purchase Order Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Create Material Purchase Order"
-      >
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-          
-          {/* Select Site */}
-          <div className="form-group">
-            <label className="form-label" style={{ fontWeight: '700', fontSize: '0.88rem' }}>Select Site</label>
-            <div className="input-with-icon" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <MapPin size={18} style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)' }} />
-              <select
-                className="form-input"
-                style={{ paddingLeft: '38px' }}
-                value={formData.site_name}
-                onChange={(e) => setFormData({ ...formData, site_name: e.target.value })}
-              >
-                {allSitesList.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
 
-          {/* Department */}
-          <div className="form-group">
-            <label className="form-label" style={{ fontWeight: '700', fontSize: '0.88rem' }}>Department</label>
-            <div className="input-with-icon" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Building2 size={18} style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)' }} />
-              <select
-                className="form-input"
-                style={{ paddingLeft: '38px' }}
-                value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              >
-                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Supplier Name */}
-          <div className="form-group">
-            <label className="form-label" style={{ fontWeight: '700', fontSize: '0.88rem' }}>Supplier Name</label>
-            <div className="input-with-icon" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Store size={18} style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)' }} />
-              <select
-                className="form-input"
-                style={{ paddingLeft: '38px' }}
-                value={formData.vendor_name}
-                onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })}
-              >
-                {SUPPLIERS.map(sup => <option key={sup} value={sup}>{sup}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Product / Material */}
-          <div className="form-group">
-            <label className="form-label" style={{ fontWeight: '700', fontSize: '0.88rem' }}>Product / Material</label>
-            <div className="input-with-icon" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Box size={18} style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)' }} />
-              <select
-                className="form-input"
-                style={{ paddingLeft: '38px' }}
-                value={formData.material_category}
-                onChange={(e) => setFormData({ ...formData, material_category: e.target.value })}
-              >
-                {PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Date of Purchase */}
-          <div className="form-group">
-            <label className="form-label" style={{ fontWeight: '700', fontSize: '0.88rem' }}>Date of Purchase</label>
-            <div className="input-with-icon" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Calendar size={18} style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)' }} />
-              <input
-                type="date"
-                required
-                className="form-input"
-                style={{ paddingLeft: '38px' }}
-                value={formData.order_date}
-                onChange={(e) => setFormData({ ...formData, order_date: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Total Purchase Amount (₹) */}
-          <div className="form-group">
-            <label className="form-label" style={{ fontWeight: '700', fontSize: '0.88rem' }}>Total Purchase Amount (₹)</label>
-            <div className="input-with-icon" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <span style={{ position: 'absolute', left: '14px', fontWeight: '800', fontSize: '1.1rem', color: 'var(--text-secondary)' }}>₹</span>
-              <input
-                type="number"
-                required
-                placeholder="Enter total amount"
-                className="form-input"
-                style={{ paddingLeft: '38px' }}
-                value={formData.total_amount}
-                onChange={(e) => setFormData({ ...formData, total_amount: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Amount Paid (₹) */}
-          <div className="form-group">
-            <label className="form-label" style={{ fontWeight: '700', fontSize: '0.88rem' }}>Amount Paid (₹)</label>
-            <div className="input-with-icon" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Wallet size={18} style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)' }} />
-              <input
-                type="number"
-                required
-                placeholder="Enter amount paid"
-                className="form-input"
-                style={{ paddingLeft: '38px' }}
-                value={formData.amount_paid}
-                onChange={(e) => setFormData({ ...formData, amount_paid: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Entered By */}
-          <div className="form-group">
-            <label className="form-label" style={{ fontWeight: '700', fontSize: '0.88rem' }}>Entered By</label>
-            <div className="input-with-icon" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <User size={18} style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)' }} />
-              <select
-                className="form-input"
-                style={{ paddingLeft: '38px' }}
-                value={formData.entered_by}
-                onChange={(e) => setFormData({ ...formData, entered_by: e.target.value })}
-              >
-                {ENTERED_BY_OPTIONS.map(name => <option key={name} value={name}>{name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-primary">
-              Create Purchase Order
-            </button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Purchase Detail Modal */}
       {viewingDetailPurchase && (
