@@ -265,33 +265,35 @@ class _ClientPortalMonthlyBillTabState extends State<ClientPortalMonthlyBillTab>
 
           // 3. Render either Official Spreadsheet or Mobile Cards
           if (_isTableView) ...[
-            // Horizontal swipe guide banner
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.arrow_back_rounded, size: 14, color: Color(0xFFB45309)),
-                  SizedBox(width: 6),
-                  Text(
-                    'Swipe horizontally to view full rate (₹/Sft) & amounts (₹)',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFB45309),
+            // Horizontal swipe guide banner (only needed when itemized area columns exist)
+            if (areaItems.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.arrow_back_rounded, size: 14, color: Color(0xFFB45309)),
+                    SizedBox(width: 6),
+                    Text(
+                      'Swipe horizontally to view full rate (₹/Sft) & amounts (₹)',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFB45309),
+                      ),
                     ),
-                  ),
-                  SizedBox(width: 6),
-                  Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFFB45309)),
-                ],
+                    SizedBox(width: 6),
+                    Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFFB45309)),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
+            ],
 
             // Spreadsheet Statement Card
             _buildSpreadsheetCard(
@@ -440,32 +442,34 @@ class _ClientPortalMonthlyBillTabState extends State<ClientPortalMonthlyBillTab>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // 1. Table Header
-                    _buildTableHeader(),
+                    _buildTableHeader(hasAreaItems: areaItems.isNotEmpty),
 
                     // 2. Section 1: Built-up Area Items
-                    ...areaItems.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final item = (entry.value is Map)
-                          ? Map<String, dynamic>.from(entry.value as Map)
-                          : <String, dynamic>{};
-                      return _buildAreaItemRow(idx + 1, item);
-                    }),
+                    if (areaItems.isNotEmpty) ...[
+                      ...areaItems.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final item = (entry.value is Map)
+                            ? Map<String, dynamic>.from(entry.value as Map)
+                            : <String, dynamic>{};
+                        return _buildAreaItemRow(idx + 1, item);
+                      }),
+                      _buildPeachSubtotalRow(
+                        totalBuiltupArea: totalBuiltupArea.toString(),
+                        averageRate: averageBuiltupRate.toString(),
+                        totalCost: totalBuiltupCost,
+                      ),
+                    ],
 
-                    // 3. Subtotal Row: Total Built-up Area (Peach)
-                    _buildPeachSubtotalRow(
-                      totalBuiltupArea: totalBuiltupArea.toString(),
-                      averageRate: averageBuiltupRate.toString(),
-                      totalCost: totalBuiltupCost,
-                    ),
-
-                    // 4. Section 2: Amenities & Extra Works
-                    ...amenityItems.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final item = (entry.value is Map)
-                          ? Map<String, dynamic>.from(entry.value as Map)
-                          : <String, dynamic>{};
-                      return _buildAmenityItemRow(areaItems.length + idx + 1, item);
-                    }),
+                    // 3. Section 2: Amenities & Extra Works
+                    if (amenityItems.isNotEmpty) ...[
+                      ...amenityItems.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final item = (entry.value is Map)
+                            ? Map<String, dynamic>.from(entry.value as Map)
+                            : <String, dynamic>{};
+                        return _buildAmenityItemRow(areaItems.length + idx + 1, item);
+                      }),
+                    ],
 
                     // 5. Section 3: Totals & Reconciliation
                     _buildGreenTotalRow('மொத்தம் (Main Building Total)', mainStructureTotal),
@@ -507,7 +511,42 @@ class _ClientPortalMonthlyBillTabState extends State<ClientPortalMonthlyBillTab>
     );
   }
 
-  Widget _buildTableHeader() {
+  Widget _buildTableHeader({bool hasAreaItems = true}) {
+    if (!hasAreaItems) {
+      return Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(bottom: BorderSide(color: Colors.black, width: 1.5)),
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildCell(
+                width: leftSpanWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                child: const Text(
+                  'விவரம் (Description)',
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Colors.black),
+                ),
+              ),
+              _buildCell(
+                width: colAmount,
+                alignment: Alignment.centerRight,
+                hasRightBorder: false,
+                child: const Text(
+                  'தொகை (Amount ₹)',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Colors.black),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -1046,201 +1085,205 @@ class _ClientPortalMonthlyBillTabState extends State<ClientPortalMonthlyBillTab>
         const SizedBox(height: 14),
 
         // Section 1: Built-up Area Items
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Text(
-            '1. Built-up Area Valuation Items',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: AppColors.darkCharcoal,
+        if (areaItems.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Text(
+              '1. Built-up Area Valuation Items',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AppColors.darkCharcoal,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 6),
+          const SizedBox(height: 6),
 
-        ...areaItems.asMap().entries.map((entry) {
-          final idx = entry.key;
-          final item = (entry.value is Map)
-              ? Map<String, dynamic>.from(entry.value as Map)
-              : <String, dynamic>{};
-          final desc = item['description']?.toString() ?? '';
-          final area = item['area_sqft']?.toString() ?? '0';
-          final rate = item['rate_per_sqft']?.toString() ?? '0';
-          final amount = item['amount'] ?? 0;
+          ...areaItems.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final item = (entry.value is Map)
+                ? Map<String, dynamic>.from(entry.value as Map)
+                : <String, dynamic>{};
+            final desc = item['description']?.toString() ?? '';
+            final area = item['area_sqft']?.toString() ?? '0';
+            final rate = item['rate_per_sqft']?.toString() ?? '0';
+            final amount = item['amount'] ?? 0;
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryYellow.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '${idx + 1}',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        desc,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.darkCharcoal,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '$area Sft. × ₹$rate',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-                      ),
-                      Text(
-                        '₹ ${CurrencyFormatter.format(amount)}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-
-        // Peach Built-up subtotal card
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFD8BE),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.black87, width: 1),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'கட்டிட பரப்பளவு (Total Built-up)',
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
-                  ),
-                  Text(
-                    '$totalBuiltupArea Sft. @ avg ₹$averageBuiltupRate/Sft.',
-                    style: const TextStyle(fontSize: 11, color: Colors.black87),
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
                   ),
                 ],
               ),
-              Text(
-                '₹ ${CurrencyFormatter.format(totalBuiltupCost)}',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        // Section 2: Amenities
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Text(
-            '2. Amenities & Extra Items',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: AppColors.darkCharcoal,
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-
-        ...amenityItems.asMap().entries.map((entry) {
-          final idx = entry.key;
-          final item = (entry.value is Map)
-              ? Map<String, dynamic>.from(entry.value as Map)
-              : <String, dynamic>{};
-          final desc = item['description']?.toString() ?? '';
-          final amount = item['amount'] ?? 0;
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '${areaItems.length + idx + 1}.',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      Container(
+                        width: 24,
+                        height: 24,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryYellow.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${idx + 1}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           desc,
-                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.darkCharcoal,
+                          ),
                         ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '$area Sft. × ₹$rate',
+                          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                        ),
+                        Text(
+                          '₹ ${CurrencyFormatter.format(amount)}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+
+          // Peach Built-up subtotal card
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD8BE),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.black87, width: 1),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'கட்டிட பரப்பளவு (Total Built-up)',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      '$totalBuiltupArea Sft. @ avg ₹$averageBuiltupRate/Sft.',
+                      style: const TextStyle(fontSize: 11, color: Colors.black87),
+                    ),
+                  ],
                 ),
                 Text(
-                  '₹ ${CurrencyFormatter.format(amount)}',
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+                  '₹ ${CurrencyFormatter.format(totalBuiltupCost)}',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
                 ),
               ],
             ),
-          );
-        }),
+          ),
 
-        const SizedBox(height: 14),
+          const SizedBox(height: 12),
+        ],
+
+        // Section 2: Amenities
+        if (amenityItems.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Text(
+              '2. Amenities & Extra Items',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AppColors.darkCharcoal,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          ...amenityItems.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final item = (entry.value is Map)
+                ? Map<String, dynamic>.from(entry.value as Map)
+                : <String, dynamic>{};
+            final desc = item['description']?.toString() ?? '';
+            final amount = item['amount'] ?? 0;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Text(
+                          '${areaItems.length + idx + 1}.',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            desc,
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '₹ ${CurrencyFormatter.format(amount)}',
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+            );
+          }),
+
+          const SizedBox(height: 14),
+        ],
 
         // Section 3: Summary Breakdown
         Container(

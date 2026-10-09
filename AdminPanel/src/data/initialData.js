@@ -166,15 +166,6 @@ export const DEFAULT_PAYMENT_BREAKUP_STAGES = [
   { sno: 10, stage_name: "ON COMPLETION OF ALL FINISHING WORKS", amount: "", work_schedule: "" }
 ];
 
-export const DEFAULT_MONTHLY_BILLING_AREAS = [
-  { sno: 1, description: "தரைத்தளம்", area_sqft: "", rate_per_sqft: "", amount: 0 },
-  { sno: 2, description: "படிக்கட்டு ஏரியா", area_sqft: "", rate_per_sqft: "", amount: 0 },
-  { sno: 3, description: "போர்டிகோ ஏரியா", area_sqft: "", rate_per_sqft: "", amount: 0 },
-  { sno: 4, description: "போர்டிகோ ஏரியா (Extended) (30'3\" x 9'3\")", area_sqft: "", rate_per_sqft: "", amount: 0 }
-];
+export const DEFAULT_MONTHLY_BILLING_AREAS = [];
 
-export const DEFAULT_MONTHLY_BILLING_AMENITIES = [
-  { sno: 5, description: "நிலத்தொட்டி (5000 லிட்டர்)", amount: "" },
-  { sno: 6, description: "செப்டிக் டேங்க் (3000 லிட்டர்)", amount: "" },
-  { sno: 7, description: "Sintex tank (1500 லிட்டர்)", amount: "" }
-];
+export const DEFAULT_MONTHLY_BILLING_AMENITIES = [];

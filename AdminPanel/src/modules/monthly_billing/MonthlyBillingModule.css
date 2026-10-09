@@ -117,6 +117,54 @@
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
 }
 
+.monthly-sites-count-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #FEF3C7;
+  color: #92400E;
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid #FDE68A;
+  white-space: nowrap;
+}
+
+.site-meta-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.site-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  padding: 4px 11px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 20px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.site-badge strong {
+  color: #0F172A;
+}
+
+.site-badge.configured-badge {
+  background: #ECFDF5;
+  border-color: #A7F3D0;
+  color: #065F46;
+  font-weight: 600;
+}
+
+.site-badge.draft-badge {
+  background: #F8FAFC;
+  border-color: #E2E8F0;
+  color: #64748B;
+}
+
 .statement-meta-inputs {
   display: flex;
   align-items: center;

@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   CalendarDays,
-  Plus,
   Save,
-  Trash2,
   FileSpreadsheet,
   FileText,
   Printer,
@@ -13,12 +11,53 @@ import {
   DollarSign,
   Calculator,
   RotateCcw,
-  Search
+  User,
+  MapPin
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import MetricCard from '../../components/common/MetricCard/MetricCard';
 import Modal from '../../components/common/Modal/Modal';
 import './MonthlyBillingModule.css';
+
+// Clean numeric parser
+const parseCleanNumber = (val) => {
+  if (val === undefined || val === null || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  const cleaned = String(val).replace(/[^0-9.-]/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+};
+
+// Calculate total estimated amount from Itemized Budget breakdown (budget_items)
+const getItemizedBudgetEstimateTotal = (siteObj) => {
+  if (!siteObj) return 0;
+  const raw = siteObj.raw || siteObj;
+
+  // 1. Calculate sum from budget_items if present
+  const items = Array.isArray(raw.budget_items)
+    ? raw.budget_items
+    : (raw.budget_items && typeof raw.budget_items === 'object' ? Object.values(raw.budget_items) : null);
+
+  if (items && items.length > 0) {
+    const sum = items.reduce((acc, row) => {
+      if (!row) return acc;
+      const amt = parseCleanNumber(
+        row.estimated_amount !== undefined ? row.estimated_amount :
+        row.estimate_amount !== undefined ? row.estimate_amount :
+        row.estimated !== undefined ? row.estimated :
+        row.amount !== undefined ? row.amount : 0
+      );
+      return acc + amt;
+    }, 0);
+    if (sum > 0) return sum;
+  }
+
+  // 2. Fall back to estimated_budget if recorded on site
+  const estBudget = parseCleanNumber(raw.estimated_budget ?? raw.total_budget);
+  if (estBudget > 0) return estBudget;
+
+  return 0;
+};
 
 export default function MonthlyBillingModule() {
   const {
@@ -26,10 +65,7 @@ export default function MonthlyBillingModule() {
     monthlyBillings = [],
     paymentBreakups = [],
     expenses = [],
-    payments = [],
     saveMonthlyBilling,
-    DEFAULT_MONTHLY_BILLING_AREAS = [],
-    DEFAULT_MONTHLY_BILLING_AMENITIES = [],
     exportToXLS,
     exportToPDF
   } = useApp();
@@ -94,24 +130,12 @@ export default function MonthlyBillingModule() {
   }, [allAvailableSites]);
 
   const [selectedSite, setSelectedSite] = useState(() => siteList[0] || '');
-  const [siteSearchQuery, setSiteSearchQuery] = useState('');
 
   useEffect(() => {
     if (siteList.length > 0 && (!selectedSite || !siteList.includes(selectedSite))) {
       setSelectedSite(siteList[0]);
     }
   }, [siteList, selectedSite]);
-
-  // Filtered sites for search query
-  const filteredSitesList = useMemo(() => {
-    if (!siteSearchQuery.trim()) return allAvailableSites;
-    const q = siteSearchQuery.toLowerCase();
-    return allAvailableSites.filter(s =>
-      s.site_name.toLowerCase().includes(q) ||
-      (s.client_name && s.client_name.toLowerCase().includes(q)) ||
-      (s.location && s.location.toLowerCase().includes(q))
-    );
-  }, [allAvailableSites, siteSearchQuery]);
 
   // Billing status & overview mapping for each registered site
   const siteBillingMap = useMemo(() => {
@@ -127,7 +151,11 @@ export default function MonthlyBillingModule() {
         map[s.site_name] = {
           hasBill: true,
           grossTotal: Number(existing.gross_total || 0),
-          balance: Number(existing.net_balance !== undefined && existing.net_balance !== '' ? existing.net_balance : (existing.balance_amount || 0)),
+          balance: Number(
+            existing.net_balance !== undefined && existing.net_balance !== '' && Number(existing.net_balance) !== 3000000
+              ? existing.net_balance
+              : (existing.balance_amount || 0)
+          ),
           billDate: existing.bill_date || '',
           billId: existing.bill_id || existing.id || '',
           updatedAt: existing.updated_at || ''
@@ -146,6 +174,11 @@ export default function MonthlyBillingModule() {
     return map;
   }, [allAvailableSites, monthlyBillings]);
 
+  // Billing overview status for current selected site
+  const selectedSiteBillingStat = useMemo(() => {
+    return siteBillingMap[selectedSite] || null;
+  }, [siteBillingMap, selectedSite]);
+
   // Header meta information matching document
   const [clientTitle, setClientTitle] = useState('');
   const [clientLocation, setClientLocation] = useState('');
@@ -153,13 +186,8 @@ export default function MonthlyBillingModule() {
   const [billDate, setBillDate] = useState('');
   const [settlementDate, setSettlementDate] = useState('');
 
-  // Table 1: Area Valuation Rows (Default descriptions match exact document template)
-  const [areaItems, setAreaItems] = useState([]);
-
-  // Table 2: Amenities / Additional Items Rows (Default descriptions match exact document template)
-  const [amenityItems, setAmenityItems] = useState([]);
-
-  // Financial reconciliation fields
+  // Financial valuation & reconciliation fields
+  const [mainStructureTotalInput, setMainStructureTotalInput] = useState('');
   const [additionalWorkBill, setAdditionalWorkBill] = useState('');
   const [receivedAdditional, setReceivedAdditional] = useState('');
   const [receivedQuoted, setReceivedQuoted] = useState('');
@@ -169,31 +197,7 @@ export default function MonthlyBillingModule() {
   const [isSaving, setIsSaving] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  // Exact Default Template Loaders (Descriptions present, numerical data empty for manual entry)
-  const getInitialAreaItems = useCallback(() => {
-    if (DEFAULT_MONTHLY_BILLING_AREAS && DEFAULT_MONTHLY_BILLING_AREAS.length > 0) {
-      return DEFAULT_MONTHLY_BILLING_AREAS.map(item => ({ ...item }));
-    }
-    return [
-      { sno: 1, description: 'தரைத்தளம்', area_sqft: '', rate_per_sqft: '', amount: 0 },
-      { sno: 2, description: 'படிக்கட்டு ஏரியா', area_sqft: '', rate_per_sqft: '', amount: 0 },
-      { sno: 3, description: 'போர்டிகோ ஏரியா', area_sqft: '', rate_per_sqft: '', amount: 0 },
-      { sno: 4, description: 'போர்டிகோ ஏரியா (Extended) (30\'3" x 9\'3")', area_sqft: '', rate_per_sqft: '', amount: 0 }
-    ];
-  }, [DEFAULT_MONTHLY_BILLING_AREAS]);
-
-  const getInitialAmenityItems = useCallback(() => {
-    if (DEFAULT_MONTHLY_BILLING_AMENITIES && DEFAULT_MONTHLY_BILLING_AMENITIES.length > 0) {
-      return DEFAULT_MONTHLY_BILLING_AMENITIES.map(item => ({ ...item }));
-    }
-    return [
-      { sno: 5, description: 'நிலத்தொட்டி (5000 லிட்டர்)', amount: '' },
-      { sno: 6, description: 'செப்டிக் டேங்க் (3000 லிட்டர்)', amount: '' },
-      { sno: 7, description: 'Sintex tank (1500 லிட்டர்)', amount: '' }
-    ];
-  }, [DEFAULT_MONTHLY_BILLING_AMENITIES]);
-
-  // Load existing billing for selected site or populate default template
+  // Load existing billing for selected site or populate default from site itemized budget
   useEffect(() => {
     if (!selectedSite) return;
     const siteObj = allAvailableSites.find(
@@ -207,62 +211,83 @@ export default function MonthlyBillingModule() {
       return bName === sName || bId === sName;
     });
 
+    // Extract itemized budget estimated total
+    const itemizedEstTotal = getItemizedBudgetEstimateTotal(siteObj);
+
     if (existing) {
       setClientTitle(existing.client_title || (siteObj?.client_name ? `திரு. ${siteObj.client_name} இல்லம்` : ''));
       setClientLocation(existing.client_location || siteObj?.location || '');
       setStatementSubtitle(existing.statement_subtitle || 'மதிப்பீடு');
       setBillDate(existing.bill_date || '');
       setSettlementDate(existing.settlement_date || '');
-      if (Array.isArray(existing.area_items) && existing.area_items.length > 0) {
-        setAreaItems(existing.area_items);
+
+      // Quoted Total resolution:
+      // If the admin added amount in estimate amount in itemized budget, populate that total.
+      // Otherwise, make field empty (removing legacy 3000000 / dummy data).
+      if (itemizedEstTotal > 0) {
+        setMainStructureTotalInput(String(itemizedEstTotal));
       } else {
-        setAreaItems(getInitialAreaItems());
+        const storedVal = existing.main_structure_total;
+        if (storedVal !== undefined && storedVal !== null && storedVal !== '' && Number(storedVal) !== 3000000 && Number(storedVal) !== 0) {
+          setMainStructureTotalInput(String(storedVal));
+        } else {
+          setMainStructureTotalInput('');
+        }
       }
-      if (Array.isArray(existing.amenity_items) && existing.amenity_items.length > 0) {
-        setAmenityItems(existing.amenity_items);
-      } else {
-        setAmenityItems(getInitialAmenityItems());
-      }
+
       setAdditionalWorkBill(existing.additional_work_bill !== undefined && existing.additional_work_bill !== null ? existing.additional_work_bill : '');
       setReceivedAdditional(existing.received_additional !== undefined && existing.received_additional !== null ? existing.received_additional : '');
       setReceivedQuoted(existing.received_quoted !== undefined && existing.received_quoted !== null ? existing.received_quoted : '');
-      setNetBalanceManual(existing.net_balance !== undefined && existing.net_balance !== null ? existing.net_balance : '');
+
+      // Purge legacy 3000000 dummy data or auto-synced balances from netBalanceManual
+      if (
+        existing.has_manual_net_balance &&
+        existing.net_balance_manual !== undefined &&
+        existing.net_balance_manual !== '' &&
+        Number(existing.net_balance_manual) !== 3000000
+      ) {
+        setNetBalanceManual(String(existing.net_balance_manual));
+      } else {
+        setNetBalanceManual('');
+      }
     } else {
       setClientTitle(siteObj?.client_name ? `திரு. ${siteObj.client_name} இல்லம்` : '');
       setClientLocation(siteObj?.location || '');
       setStatementSubtitle('மதிப்பீடு');
       setBillDate('');
       setSettlementDate('');
-      setAreaItems(getInitialAreaItems());
-      setAmenityItems(getInitialAmenityItems());
+
+      // Quoted Total:
+      // If itemized budget has an estimate, populate it; otherwise field is empty
+      if (itemizedEstTotal > 0) {
+        setMainStructureTotalInput(String(itemizedEstTotal));
+      } else {
+        setMainStructureTotalInput('');
+      }
+
       setAdditionalWorkBill('');
       setReceivedAdditional('');
       setReceivedQuoted('');
       setNetBalanceManual('');
     }
-  }, [selectedSite, monthlyBillings, allAvailableSites, getInitialAreaItems, getInitialAmenityItems]);
+  }, [selectedSite, monthlyBillings, allAvailableSites]);
+
+  // Current selected site details & Itemized Budget estimate total
+  const currentSiteObj = useMemo(() => {
+    if (!selectedSite) return null;
+    return allAvailableSites.find(
+      s => s.site_name.toLowerCase() === selectedSite.toLowerCase()
+    ) || null;
+  }, [allAvailableSites, selectedSite]);
+
+  const currentItemizedEstimateTotal = useMemo(() => {
+    return getItemizedBudgetEstimateTotal(currentSiteObj);
+  }, [currentSiteObj]);
 
   // Calculations
-  const totalBuiltupArea = useMemo(() => {
-    return areaItems.reduce((acc, curr) => acc + (parseFloat(curr.area_sqft) || 0), 0);
-  }, [areaItems]);
-
-  const totalBuiltupCost = useMemo(() => {
-    return areaItems.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
-  }, [areaItems]);
-
-  const averageBuiltupRate = useMemo(() => {
-    if (totalBuiltupArea === 0) return 0;
-    return Math.round(totalBuiltupCost / totalBuiltupArea);
-  }, [totalBuiltupCost, totalBuiltupArea]);
-
-  const totalAmenitiesCost = useMemo(() => {
-    return amenityItems.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
-  }, [amenityItems]);
-
   const mainStructureTotal = useMemo(() => {
-    return totalBuiltupCost + totalAmenitiesCost;
-  }, [totalBuiltupCost, totalAmenitiesCost]);
+    return parseFloat(mainStructureTotalInput) || 0;
+  }, [mainStructureTotalInput]);
 
   const grossTotalAmount = useMemo(() => {
     return mainStructureTotal + (parseFloat(additionalWorkBill) || 0);
@@ -280,18 +305,6 @@ export default function MonthlyBillingModule() {
       .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
   }, [selectedSite, expenses]);
 
-  // Live Payments logged from Admin App (Firestore 'payments' collection)
-  const sitePaymentsTotal = useMemo(() => {
-    if (!selectedSite || !payments || payments.length === 0) return 0;
-    const sName = selectedSite.toLowerCase().trim();
-    return payments
-      .filter(p => {
-        const pSite = String(p.site_name || p.project_name || p.site_id || '').toLowerCase().trim();
-        return pSite === sName || pSite.includes(sName) || sName.includes(pSite);
-      })
-      .reduce((sum, p) => sum + (parseFloat(p.amount_received || p.amount) || 0), 0);
-  }, [selectedSite, payments]);
-
   const totalReceivedCombined = useMemo(() => {
     const additional = parseFloat(receivedAdditional) || 0;
     const quoted = parseFloat(receivedQuoted) || 0;
@@ -303,80 +316,14 @@ export default function MonthlyBillingModule() {
     return grossTotalAmount - totalReceivedCombined;
   }, [grossTotalAmount, totalReceivedCombined]);
 
-  // Handle Area Rows Changes
-  const handleAreaChange = (index, field, value) => {
-    setAreaItems(prev => {
-      const next = [...prev];
-      const updated = { ...next[index], [field]: value };
-      if (field === 'area_sqft' || field === 'rate_per_sqft') {
-        const areaVal = field === 'area_sqft' ? value : updated.area_sqft;
-        const rateVal = field === 'rate_per_sqft' ? value : updated.rate_per_sqft;
-        const area = parseFloat(areaVal);
-        const rate = parseFloat(rateVal);
-        if (!isNaN(area) && !isNaN(rate) && areaVal !== '' && rateVal !== '') {
-          updated.amount = Math.round(area * rate);
-        } else {
-          updated.amount = 0;
-        }
-      }
-      next[index] = updated;
-      return next;
-    });
-  };
-
-  const handleAddAreaRow = () => {
-    setAreaItems(prev => [
-      ...prev,
-      {
-        sno: prev.length + 1,
-        description: '',
-        area_sqft: '',
-        rate_per_sqft: '',
-        amount: 0
-      }
-    ]);
-  };
-
-  const handleDeleteAreaRow = (index) => {
-    if (areaItems.length <= 1) {
-      alert("At least one area valuation item is required.");
-      return;
-    }
-    setAreaItems(prev => {
-      const next = prev.filter((_, i) => i !== index);
-      return next.map((it, i) => ({ ...it, sno: i + 1 }));
-    });
-  };
-
-  // Handle Amenity Rows Changes
-  const handleAmenityChange = (index, field, value) => {
-    setAmenityItems(prev => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
-    });
-  };
-
-  const handleAddAmenityRow = () => {
-    setAmenityItems(prev => [
-      ...prev,
-      {
-        sno: areaItems.length + prev.length + 1,
-        description: '',
-        amount: ''
-      }
-    ]);
-  };
-
-  const handleDeleteAmenityRow = (index) => {
-    setAmenityItems(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Reset to Document Template
+  // Reset to default
   const handleResetToTemplate = () => {
-    if (window.confirm("Reset rows to the exact document template descriptions? Any custom added rows will be reset.")) {
-      setAreaItems(getInitialAreaItems());
-      setAmenityItems(getInitialAmenityItems());
+    if (window.confirm("Reset billing figures for this site?")) {
+      const siteObj = allAvailableSites.find(
+        s => s.site_name.toLowerCase() === selectedSite.toLowerCase()
+      );
+      const itemizedEstTotal = getItemizedBudgetEstimateTotal(siteObj);
+      setMainStructureTotalInput(itemizedEstTotal > 0 ? String(itemizedEstTotal) : '');
       setAdditionalWorkBill('');
       setReceivedAdditional('');
       setReceivedQuoted('');
@@ -398,6 +345,9 @@ export default function MonthlyBillingModule() {
   const handleSaveBilling = async () => {
     setIsSaving(true);
     try {
+      const hasManualNet = String(netBalanceManual).trim() !== '';
+      const netVal = hasManualNet ? (parseFloat(netBalanceManual) || 0) : balanceAmount;
+
       const payload = {
         id: selectedSite,
         bill_id: `MONTHLY-${selectedSite.replace(/\s+/g, '-').toUpperCase()}`,
@@ -407,11 +357,11 @@ export default function MonthlyBillingModule() {
         statement_subtitle: statementSubtitle,
         bill_date: billDate,
         settlement_date: settlementDate,
-        area_items: areaItems,
-        amenity_items: amenityItems,
-        total_builtup_area: totalBuiltupArea,
-        total_builtup_cost: totalBuiltupCost,
-        average_builtup_rate: averageBuiltupRate,
+        area_items: [],
+        amenity_items: [],
+        total_builtup_area: 0,
+        total_builtup_cost: 0,
+        average_builtup_rate: 0,
         main_structure_total: mainStructureTotal,
         additional_work_bill: parseFloat(additionalWorkBill) || 0,
         gross_total: grossTotalAmount,
@@ -420,7 +370,9 @@ export default function MonthlyBillingModule() {
         site_expenses_total: siteExpensesTotal,
         total_received: totalReceivedCombined,
         balance_amount: balanceAmount,
-        net_balance: parseFloat(netBalanceManual) || (netBalanceManual === '' ? balanceAmount : 0)
+        net_balance: netVal,
+        net_balance_manual: hasManualNet ? netBalanceManual.trim() : '',
+        has_manual_net_balance: hasManualNet
       };
 
       await saveMonthlyBilling(payload);
@@ -439,78 +391,41 @@ export default function MonthlyBillingModule() {
     const exportRows = [];
 
     // Header section
-    if (clientTitle) exportRows.push({ SNo: '', Description: clientTitle, Area: '', Rate: '', Amount: '' });
-    if (clientLocation) exportRows.push({ SNo: '', Description: clientLocation, Area: '', Rate: '', Amount: '' });
-    exportRows.push({ SNo: '', Description: statementSubtitle || 'மதிப்பீடு', Area: '', Rate: '', Amount: '' });
-    exportRows.push({ SNo: 'வ.எண்', Description: 'விவரங்கள்', Area: 'பரப்பளவு (சதுர அடி)', Rate: 'விலை (சதுர அடி)', Amount: 'தொகை' });
-
-    // Area items
-    areaItems.forEach(item => {
-      exportRows.push({
-        SNo: item.sno,
-        Description: item.description,
-        Area: item.area_sqft !== '' ? `${item.area_sqft} Sft.` : '',
-        Rate: item.rate_per_sqft !== '' ? `₹ ${item.rate_per_sqft}` : '',
-        Amount: item.amount > 0 ? item.amount : ''
-      });
-    });
-
-    // Subtotal
-    exportRows.push({
-      SNo: '',
-      Description: 'கட்டிட பரப்பளவு',
-      Area: totalBuiltupArea > 0 ? `${totalBuiltupArea} Sft.` : '',
-      Rate: averageBuiltupRate > 0 ? `₹ ${averageBuiltupRate}/Sft.` : '',
-      Amount: totalBuiltupCost
-    });
-
-    // Amenities
-    amenityItems.forEach((item, idx) => {
-      exportRows.push({
-        SNo: item.sno || areaItems.length + idx + 1,
-        Description: item.description,
-        Area: '',
-        Rate: '',
-        Amount: item.amount !== '' ? item.amount : ''
-      });
-    });
+    if (clientTitle) exportRows.push({ SNo: '', Description: clientTitle, Amount: '' });
+    if (clientLocation) exportRows.push({ SNo: '', Description: clientLocation, Amount: '' });
+    exportRows.push({ SNo: '', Description: statementSubtitle || 'மதிப்பீடு', Amount: '' });
+    exportRows.push({ SNo: 'வ.எண்', Description: 'விவரங்கள்', Amount: 'தொகை' });
 
     // Main Structure Total
     exportRows.push({
-      SNo: '',
-      Description: 'மொத்தம்',
-      Area: '',
-      Rate: '',
+      SNo: '1',
+      Description: 'மொத்தம் (Main Structure / Quoted Total)',
       Amount: mainStructureTotal
     });
 
     // Additional Work Bill
     exportRows.push({
-      SNo: '',
+      SNo: '2',
       Description: 'Additional Work Bill',
-      Area: '',
-      Rate: '',
       Amount: additionalWorkBill !== '' ? additionalWorkBill : 0
     });
 
     // Gross Total
     exportRows.push({
-      SNo: '',
+      SNo: '3',
       Description: `மொத்த தொகை ${billDate ? `(${billDate})` : ''}`,
-      Area: '',
-      Rate: '',
       Amount: grossTotalAmount
     });
 
     // Settlement
-    exportRows.push({ SNo: '', Description: 'TOTAL RECEIVED AMOUNT (in Additional)', Area: '', Rate: '', Amount: receivedAdditional !== '' ? receivedAdditional : '-' });
-    exportRows.push({ SNo: '', Description: 'TOTAL RECEIVED AMOUNT (in Quoted)', Area: '', Rate: '', Amount: receivedQuoted !== '' ? receivedQuoted : 0 });
+    exportRows.push({ SNo: '4', Description: 'TOTAL RECEIVED AMOUNT (in Additional)', Amount: receivedAdditional !== '' ? receivedAdditional : '-' });
+    exportRows.push({ SNo: '5', Description: 'TOTAL RECEIVED AMOUNT (in Quoted)', Amount: receivedQuoted !== '' ? receivedQuoted : 0 });
     if (siteExpensesTotal > 0) {
-      exportRows.push({ SNo: '', Description: 'EXPENSES ADDED (Admin App / Site Live)', Area: '', Rate: '', Amount: siteExpensesTotal });
+      exportRows.push({ SNo: '•', Description: 'EXPENSES ADDED (Admin App / Site Live)', Amount: siteExpensesTotal });
     }
-    exportRows.push({ SNo: '', Description: `AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL (To Pay from client) ${settlementDate ? `AS ON ${settlementDate}` : ''}`, Area: '', Rate: '', Amount: grossTotalAmount });
-    exportRows.push({ SNo: '', Description: `BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`, Area: '', Rate: '', Amount: balanceAmount });
-    exportRows.push({ SNo: '', Description: `NET BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`, Area: '', Rate: '', Amount: netBalanceManual !== '' ? netBalanceManual : balanceAmount });
+    exportRows.push({ SNo: '6', Description: `AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL (To Pay from client) ${settlementDate ? `AS ON ${settlementDate}` : ''}`, Amount: grossTotalAmount });
+    exportRows.push({ SNo: '7', Description: `BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`, Amount: balanceAmount });
+    exportRows.push({ SNo: '8', Description: `NET BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`, Amount: netBalanceManual !== '' ? netBalanceManual : balanceAmount });
 
     const filename = `Yeloline_Monthly_Billing_${selectedSite.replace(/\s+/g, '_')}`;
     exportToXLS(exportRows, filename, 'Monthly Billing Statement');
@@ -520,113 +435,65 @@ export default function MonthlyBillingModule() {
   const handleExportPDF = () => {
     const exportRows = [];
 
-    areaItems.forEach(item => {
-      exportRows.push({
-        sno: item.sno,
-        description: item.description,
-        area: item.area_sqft !== '' ? `${item.area_sqft} Sft.` : '',
-        rate: item.rate_per_sqft !== '' ? `₹ ${item.rate_per_sqft}` : '',
-        amount: item.amount > 0 ? `₹ ${formatCurrency(item.amount)}` : ''
-      });
-    });
-
     exportRows.push({
-      sno: '',
-      description: 'கட்டிட பரப்பளவு',
-      area: totalBuiltupArea > 0 ? `${totalBuiltupArea} Sft.` : '',
-      rate: averageBuiltupRate > 0 ? `₹ ${averageBuiltupRate}/Sft.` : '',
-      amount: `₹ ${formatCurrency(totalBuiltupCost)}`
-    });
-
-    amenityItems.forEach((item, idx) => {
-      exportRows.push({
-        sno: item.sno || areaItems.length + idx + 1,
-        description: item.description,
-        area: '',
-        rate: '',
-        amount: item.amount !== '' ? `₹ ${formatCurrency(item.amount)}` : ''
-      });
-    });
-
-    exportRows.push({
-      sno: '',
-      description: 'மொத்தம்',
-      area: '',
-      rate: '',
+      sno: '1',
+      description: 'மொத்தம் (Main Structure / Quoted Total)',
       amount: `₹ ${formatCurrency(mainStructureTotal)}`
     });
 
     exportRows.push({
-      sno: '',
+      sno: '2',
       description: 'Additional Work Bill',
-      area: '',
-      rate: '',
       amount: `₹ ${formatCurrency(additionalWorkBill || 0)}`
     });
 
     exportRows.push({
-      sno: '',
+      sno: '3',
       description: `மொத்த தொகை ${billDate ? `(${billDate})` : ''}`,
-      area: '',
-      rate: '',
       amount: `₹ ${formatCurrency(grossTotalAmount)}`
     });
 
     exportRows.push({
-      sno: '',
+      sno: '4',
       description: 'TOTAL RECEIVED AMOUNT (in Additional)',
-      area: '',
-      rate: '',
       amount: receivedAdditional !== '' && parseFloat(receivedAdditional) > 0 ? `₹ ${formatCurrency(receivedAdditional)}` : '₹ -'
     });
 
     exportRows.push({
-      sno: '',
+      sno: '5',
       description: 'TOTAL RECEIVED AMOUNT (in Quoted)',
-      area: '',
-      rate: '',
       amount: `₹ ${formatCurrency(receivedQuoted || 0)}`
     });
 
     if (siteExpensesTotal > 0) {
       exportRows.push({
-        sno: '',
+        sno: '•',
         description: 'EXPENSES ADDED (Admin App / Site Live)',
-        area: '',
-        rate: '',
         amount: `₹ ${formatCurrency(siteExpensesTotal)}`
       });
     }
 
     exportRows.push({
-      sno: '',
+      sno: '6',
       description: `AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL (To Pay from client) ${settlementDate ? `AS ON ${settlementDate}` : ''}`,
-      area: '',
-      rate: '',
       amount: `₹ ${formatCurrency(grossTotalAmount)}`
     });
 
     exportRows.push({
-      sno: '',
+      sno: '7',
       description: `BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`,
-      area: '',
-      rate: '',
       amount: `₹ ${formatCurrency(balanceAmount)}`
     });
 
     exportRows.push({
-      sno: '',
+      sno: '8',
       description: `NET BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`,
-      area: '',
-      rate: '',
       amount: `₹ ${formatCurrency(netBalanceManual !== '' ? netBalanceManual : balanceAmount)}`
     });
 
     const exportCols = [
       { key: "sno", label: "வ.எண்" },
       { key: "description", label: "விவரங்கள்" },
-      { key: "area", label: "பரப்பளவு (சதுர அடி)" },
-      { key: "rate", label: "விலை (சதுர அடி)" },
       { key: "amount", label: "தொகை" }
     ];
 
@@ -692,79 +559,61 @@ export default function MonthlyBillingModule() {
         </div>
       )}
 
-      {/* 1. All Registered Sites Selection Cards Section */}
-      <div className="monthly-sites-section">
-        <div className="monthly-sites-header">
-          <div className="monthly-sites-title-wrap">
-            <Building size={20} style={{ color: '#D97706' }} />
-            <div>
-              <div className="monthly-sites-title">
-                Registered Sites & Client Projects
-                <span className="monthly-sites-count-badge">
-                  {allAvailableSites.length} {allAvailableSites.length === 1 ? 'Site' : 'Sites'} Available
-                </span>
-              </div>
-              <div className="monthly-sites-subtitle">
-                Click any registered site below to load and update its monthly billing valuation statement in real-time
-              </div>
-            </div>
+      {/* 1. Dropdown Style Site Selector Strip */}
+      <div className="monthly-site-selector-card">
+        <div className="site-select-wrapper">
+          <label className="selector-label" htmlFor="monthly-site-select">
+            <Building size={18} style={{ color: '#D97706' }} /> Select Site / Project:
+          </label>
+          <div className="site-select-dropdown-box">
+            <select
+              id="monthly-site-select"
+              value={selectedSite}
+              onChange={(e) => setSelectedSite(e.target.value)}
+              className="site-dropdown-input"
+            >
+              {allAvailableSites.map(site => {
+                const stat = siteBillingMap[site.site_name];
+                const statusTag = stat?.hasBill ? '✓ Configured' : '○ Ready for Setup';
+                const clientPart = site.client_name ? ` (${site.client_name})` : '';
+                return (
+                  <option key={site.id || site.site_name} value={site.site_name}>
+                    {site.site_name}{clientPart} — {statusTag}
+                  </option>
+                );
+              })}
+            </select>
           </div>
-
-          <div className="monthly-sites-search-wrap">
-            <Search size={14} className="monthly-sites-search-icon" />
-            <input
-              type="text"
-              className="monthly-sites-search-input"
-              placeholder="Search registered sites..."
-              value={siteSearchQuery}
-              onChange={(e) => setSiteSearchQuery(e.target.value)}
-            />
-          </div>
+          <span className="monthly-sites-count-badge">
+            {allAvailableSites.length} {allAvailableSites.length === 1 ? 'Site' : 'Sites'} Available
+          </span>
         </div>
 
-        <div className="monthly-sites-grid">
-          {filteredSitesList.map(site => {
-            const isSelected = selectedSite.toLowerCase() === site.site_name.toLowerCase();
-            const stat = siteBillingMap[site.site_name] || { hasBill: false, grossTotal: 0, balance: 0 };
-            return (
-              <div
-                key={site.id || site.site_name}
-                className={`monthly-site-card ${isSelected ? 'active' : ''}`}
-                onClick={() => setSelectedSite(site.site_name)}
-                title={`Click to load and edit monthly billing for ${site.site_name}`}
-              >
-                <div className="monthly-site-card-top">
-                  <div className="monthly-site-icon">
-                    <Building size={16} />
-                  </div>
-                  <div className="monthly-site-heading">
-                    <div className="monthly-site-name">{site.site_name}</div>
-                    <div className="monthly-site-client">
-                      {site.client_name ? `Client: ${site.client_name}` : 'Registered Client'}
-                      {site.location ? ` • ${site.location}` : ''}
-                    </div>
-                  </div>
-                  {isSelected && (
-                    <span className="monthly-site-active-pill">
-                      <CheckCircle2 size={10} /> Selected
-                    </span>
-                  )}
-                </div>
-
-                <div className="monthly-site-card-footer">
-                  <span className={`monthly-site-status-pill ${stat.hasBill ? 'configured' : 'draft'}`}>
-                    {stat.hasBill ? '✓ Configured' : '○ Ready for Setup'}
-                  </span>
-                  <span className="monthly-site-amount">
-                    {stat.hasBill
-                      ? `₹ ${formatCurrency(stat.grossTotal)}`
-                      : '₹ 0.00'}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        {/* Selected Site Meta Badges */}
+        {currentSiteObj && (
+          <div className="site-meta-badges">
+            {currentSiteObj.client_name && (
+              <span className="site-badge">
+                <User size={13} style={{ color: '#D97706' }} /> Client: <strong>{currentSiteObj.client_name}</strong>
+              </span>
+            )}
+            {currentSiteObj.location && (
+              <span className="site-badge">
+                <MapPin size={13} style={{ color: '#0284C7' }} /> <span>{currentSiteObj.location}</span>
+              </span>
+            )}
+            <span className={`site-badge ${selectedSiteBillingStat?.hasBill ? 'configured-badge' : 'draft-badge'}`}>
+              {selectedSiteBillingStat?.hasBill ? (
+                <>
+                  <CheckCircle2 size={13} style={{ color: '#16A34A' }} />
+                  <span>Configured: <strong>₹ {formatCurrency(selectedSiteBillingStat.grossTotal)}</strong></span>
+                </>
+              ) : (
+                <span>○ Ready for Setup</span>
+              )}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Metric Cards Row */}
@@ -863,184 +712,67 @@ export default function MonthlyBillingModule() {
           </div>
         </div>
 
-        {/* The Exact Valuation Table */}
+        {/* The Billing Statement Table */}
         <div className="valuation-table-wrapper">
           <table className="valuation-table">
             <thead>
               <tr className="table-main-header">
-                <th className="col-sno">வ.எண்</th>
-                <th className="col-desc">விவரங்கள்</th>
-                <th className="col-area">
-                  பரப்பளவு<br />
-                  <span className="col-subtext">(சதுர அடி)</span>
-                </th>
-                <th className="col-rate">
-                  விலை<br />
-                  <span className="col-subtext">(சதுர அடி)</span>
-                </th>
-                <th className="col-amount">தொகை</th>
-                <th className="col-actions">ACTION</th>
+                <th className="col-sno" style={{ width: '80px' }}>வ.எண்</th>
+                <th className="col-desc">விவரங்கள் (Particulars)</th>
+                <th className="col-amount" style={{ width: '240px' }}>தொகை (Amount ₹)</th>
               </tr>
             </thead>
             <tbody>
-              {/* Section 1: Built-up Area Valuation Items */}
-              {areaItems.map((item, index) => (
-                <tr key={index} className="area-item-row">
-                  <td className="cell-center">
-                    <span className="sno-badge">{item.sno || index + 1}</span>
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      className="cell-input desc-input"
-                      value={item.description}
-                      onChange={(e) => handleAreaChange(index, 'description', e.target.value)}
-                      placeholder="e.g. தரைத்தளம்"
-                    />
-                  </td>
-                  <td>
-                    <div className="unit-input-wrap">
-                      <input
-                        type="number"
-                        step="any"
-                        className="cell-input num-input"
-                        value={item.area_sqft}
-                        onChange={(e) => handleAreaChange(index, 'area_sqft', e.target.value)}
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </td>
-                  <td>
-                    <div className="currency-input-wrap">
-                      <span className="currency-symbol">₹</span>
-                      <input
-                        type="number"
-                        step="any"
-                        className="cell-input num-input"
-                        value={item.rate_per_sqft}
-                        onChange={(e) => handleAreaChange(index, 'rate_per_sqft', e.target.value)}
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </td>
-                  <td>
-                    <div className="amount-display-cell">
-                      <span className="currency-symbol">₹</span>
-                      <strong>{formatCurrency(item.amount)}</strong>
-                    </div>
-                  </td>
-                  <td className="cell-center">
-                    <button
-                      type="button"
-                      className="delete-row-btn"
-                      onClick={() => handleDeleteAreaRow(index)}
-                      title="Remove area row"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-
-              {/* Built-up Area Subtotal Row (Peach & Mint Green background - Matching Document) */}
-              <tr className="builtup-subtotal-row">
-                <td className="cell-empty"></td>
-                <td className="subtotal-label-cell">
-                  <strong>கட்டிட பரப்பளவு</strong>
-                </td>
-                <td className="subtotal-val-cell subtotal-area-val">
-                  <strong>{totalBuiltupArea > 0 ? `${totalBuiltupArea} Sft.` : '—'}</strong>
-                </td>
-                <td className="subtotal-val-cell subtotal-rate-val">
-                  <strong>{averageBuiltupRate > 0 ? `₹ ${averageBuiltupRate}/Sft.` : '—'}</strong>
-                </td>
-                <td className="subtotal-amount-cell">
-                  <span className="currency-symbol">₹</span>
-                  <strong>{formatCurrency(totalBuiltupCost)}</strong>
-                </td>
-                <td className="cell-center">
-                  <button
-                    type="button"
-                    className="add-sub-btn"
-                    onClick={handleAddAreaRow}
-                    title="Add another area row"
-                  >
-                    <Plus size={14} /> Add
-                  </button>
-                </td>
-              </tr>
-
-              {/* Section 2: Fixed Amenities (Sump, Septic Tank, Sintex Tank) */}
-              {amenityItems.map((item, index) => (
-                <tr key={index} className="amenity-item-row">
-                  <td className="cell-center">
-                    <span className="sno-badge">{item.sno || areaItems.length + index + 1}</span>
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      className="cell-input desc-input"
-                      value={item.description}
-                      onChange={(e) => handleAmenityChange(index, 'description', e.target.value)}
-                      placeholder="e.g. நிலத்தொட்டி (5000 லிட்டர்)"
-                    />
-                  </td>
-                  <td className="cell-center text-muted">—</td>
-                  <td className="cell-center text-muted">—</td>
-                  <td>
-                    <div className="currency-input-wrap">
-                      <span className="currency-symbol">₹</span>
-                      <input
-                        type="number"
-                        step="any"
-                        className="cell-input num-input bold-input"
-                        value={item.amount}
-                        onChange={(e) => handleAmenityChange(index, 'amount', e.target.value)}
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </td>
-                  <td className="cell-center">
-                    <button
-                      type="button"
-                      className="delete-row-btn"
-                      onClick={() => handleDeleteAmenityRow(index)}
-                      title="Remove amenity row"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-
-              {/* Amenities Toolbar Row */}
-              <tr className="amenity-toolbar-row">
-                <td colSpan={6}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={handleAddAmenityRow}
-                  >
-                    <Plus size={14} /> Add Extra Work / Amenity Row
-                  </button>
-                </td>
-              </tr>
-
-              {/* Main Structure Total Row (Light Green background - Matching Document) */}
+              {/* 1. Main Contract / Building Total */}
               <tr className="structure-total-row">
-                <td colSpan={4} className="total-title-cell">
-                  <strong>மொத்தம்</strong>
+                <td className="cell-center">
+                  <span className="sno-badge">1</span>
                 </td>
-                <td className="total-val-cell">
-                  <span className="currency-symbol">₹</span>
-                  <strong>{formatCurrency(mainStructureTotal)}</strong>
+                <td className="total-title-cell">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <strong>மொத்தம் (Main Structure / Quoted Total)</strong>
+                    {currentItemizedEstimateTotal > 0 && (
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: '#15803d',
+                          backgroundColor: '#dcfce7',
+                          border: '1px solid #bbf7d0',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                        title="Linked to Itemized Budget Estimated Total"
+                      >
+                        Itemized Budget Est: ₹{formatCurrency(currentItemizedEstimateTotal)}
+                      </span>
+                    )}
+                  </div>
                 </td>
-                <td></td>
+                <td className="total-input-cell">
+                  <div className="currency-input-wrap">
+                    <span className="currency-symbol">₹</span>
+                    <input
+                      type="number"
+                      step="any"
+                      className="cell-input num-input bold-input"
+                      value={mainStructureTotalInput}
+                      onChange={(e) => setMainStructureTotalInput(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </td>
               </tr>
 
-              {/* Additional Work Bill Row */}
+              {/* 2. Additional Work Bill Row */}
               <tr className="additional-bill-row">
-                <td colSpan={4} className="total-title-cell">
+                <td className="cell-center">
+                  <span className="sno-badge">2</span>
+                </td>
+                <td className="total-title-cell">
                   <span>Additional Work Bill</span>
                 </td>
                 <td className="total-input-cell">
@@ -1056,24 +788,28 @@ export default function MonthlyBillingModule() {
                     />
                   </div>
                 </td>
-                <td></td>
               </tr>
 
-              {/* Gross Total Amount Row (Light Yellow background - Matching Document) */}
+              {/* 3. Gross Total Amount Row (Light Yellow background - Matching Document) */}
               <tr className="gross-total-row">
-                <td colSpan={4} className="total-title-cell">
+                <td className="cell-center">
+                  <span className="sno-badge">3</span>
+                </td>
+                <td className="total-title-cell">
                   <strong>மொத்த தொகை {billDate ? `(${billDate})` : ''}</strong>
                 </td>
                 <td className="total-val-cell highlight-yellow">
                   <span className="currency-symbol">₹</span>
                   <strong>{formatCurrency(grossTotalAmount)}</strong>
                 </td>
-                <td></td>
               </tr>
 
-              {/* Section 3: Financial Settlements & Payments */}
+              {/* 4. TOTAL RECEIVED AMOUNT (in Additional) */}
               <tr className="reconciliation-row">
-                <td colSpan={4} className="recon-label-cell">
+                <td className="cell-center">
+                  <span className="sno-badge">4</span>
+                </td>
+                <td className="recon-label-cell">
                   TOTAL RECEIVED AMOUNT (in Additional)
                 </td>
                 <td className="recon-input-cell">
@@ -1089,11 +825,14 @@ export default function MonthlyBillingModule() {
                     />
                   </div>
                 </td>
-                <td></td>
               </tr>
 
+              {/* 5. TOTAL RECEIVED AMOUNT (in Quoted) */}
               <tr className="reconciliation-row">
-                <td colSpan={4} className="recon-label-cell">
+                <td className="cell-center">
+                  <span className="sno-badge">5</span>
+                </td>
+                <td className="recon-label-cell">
                   TOTAL RECEIVED AMOUNT (in Quoted)
                 </td>
                 <td className="recon-input-cell">
@@ -1109,12 +848,15 @@ export default function MonthlyBillingModule() {
                     />
                   </div>
                 </td>
-                <td></td>
               </tr>
 
+              {/* Live Expenses from Admin App / Site */}
               {siteExpensesTotal > 0 && (
                 <tr className="reconciliation-row" style={{ backgroundColor: '#fffbeb' }}>
-                  <td colSpan={4} className="recon-label-cell">
+                  <td className="cell-center">
+                    <span className="sno-badge" style={{ background: '#fef3c7', color: '#b45309' }}>•</span>
+                  </td>
+                  <td className="recon-label-cell">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontWeight: 700, color: '#92400e' }}>EXPENSES ADDED (Admin App / Site Live)</span>
                       <span style={{ fontSize: '11px', background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
@@ -1126,12 +868,15 @@ export default function MonthlyBillingModule() {
                     <span className="currency-symbol">₹</span>
                     <strong>{formatCurrency(siteExpensesTotal)}</strong>
                   </td>
-                  <td></td>
                 </tr>
               )}
 
+              {/* 6. AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL */}
               <tr className="reconciliation-row">
-                <td colSpan={4} className="recon-label-cell recon-multiline">
+                <td className="cell-center">
+                  <span className="sno-badge">6</span>
+                </td>
+                <td className="recon-label-cell recon-multiline">
                   <div>AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL</div>
                   <div>(To Pay from client) {settlementDate ? `AS ON ${settlementDate}` : ''}</div>
                 </td>
@@ -1139,25 +884,50 @@ export default function MonthlyBillingModule() {
                   <span className="currency-symbol">₹</span>
                   <strong>{formatCurrency(grossTotalAmount)}</strong>
                 </td>
-                <td></td>
               </tr>
 
-              {/* Balance Amount Row (Light Blue background - Matching Document) */}
+              {/* 7. Balance Amount Row (Light Blue background - Matching Document) */}
               <tr className="balance-row">
-                <td colSpan={4} className="balance-label-cell">
+                <td className="cell-center">
+                  <span className="sno-badge">7</span>
+                </td>
+                <td className="balance-label-cell">
                   <strong>BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}</strong>
                 </td>
                 <td className="balance-val-cell">
                   <span className="currency-symbol">₹</span>
                   <strong>{formatCurrency(balanceAmount)}</strong>
                 </td>
-                <td></td>
               </tr>
 
-              {/* Net Balance Amount Row (Light Green background - Matching Document) */}
+              {/* 8. Net Balance Amount Row (Light Green background - Matching Document) */}
               <tr className="net-balance-row">
-                <td colSpan={4} className="net-balance-label-cell">
-                  <strong>NET BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}</strong>
+                <td className="cell-center">
+                  <span className="sno-badge">8</span>
+                </td>
+                <td className="net-balance-label-cell">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <strong>NET BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}</strong>
+                    {netBalanceManual !== '' && (
+                      <button
+                        type="button"
+                        onClick={() => setNetBalanceManual('')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#dc2626',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          textDecoration: 'underline',
+                          padding: 0
+                        }}
+                        title="Clear manual override"
+                      >
+                        Clear field
+                      </button>
+                    )}
+                  </div>
                 </td>
                 <td className="net-input-cell">
                   <div className="currency-input-wrap">
@@ -1168,11 +938,10 @@ export default function MonthlyBillingModule() {
                       className="cell-input num-input net-input"
                       value={netBalanceManual}
                       onChange={(e) => setNetBalanceManual(e.target.value)}
-                      placeholder={formatCurrency(balanceAmount)}
+                      placeholder="0.00"
                     />
                   </div>
                 </td>
-                <td></td>
               </tr>
             </tbody>
           </table>
@@ -1181,7 +950,7 @@ export default function MonthlyBillingModule() {
         {/* Card Footer Save Bar */}
         <div className="monthly-card-footer">
           <div className="footer-info">
-            <span>Building area cost automatically calculates: <code>Area × Rate = Amount</code>. All totals, subtotals, and balance amounts update dynamically.</span>
+            <span>Enter Main Contract / Quoted Total and Additional Work Bill. All totals, received amounts, and balance settlements calculate dynamically.</span>
           </div>
           <div className="footer-actions">
             <button
@@ -1213,111 +982,63 @@ export default function MonthlyBillingModule() {
             </div>
           </div>
 
-          {/* Statement Table Matching Document Photo */}
+          {/* Statement Table Matching Document */}
           <table className="sheet-table">
             <thead>
               <tr className="sheet-th-row">
-                <th style={{ width: '8%', textAlign: 'center' }}>வ.எண்</th>
-                <th style={{ width: '42%', textAlign: 'center' }}>விவரங்கள்</th>
-                <th style={{ width: '16%', textAlign: 'center' }}>
-                  பரப்பளவு<br />
-                  <span style={{ fontSize: '0.85em' }}>(சதுர அடி)</span>
-                </th>
-                <th style={{ width: '17%', textAlign: 'center' }}>
-                  விலை<br />
-                  <span style={{ fontSize: '0.85em' }}>(சதுர அடி)</span>
-                </th>
-                <th style={{ width: '17%', textAlign: 'center' }}>தொகை</th>
+                <th style={{ width: '10%', textAlign: 'center' }}>வ.எண்</th>
+                <th style={{ width: '60%', textAlign: 'left', paddingLeft: '14px' }}>விவரங்கள் (Particulars)</th>
+                <th style={{ width: '30%', textAlign: 'right', paddingRight: '14px' }}>தொகை (Amount ₹)</th>
               </tr>
             </thead>
             <tbody>
-              {/* Area items */}
-              {areaItems.map((item, idx) => (
-                <tr key={idx} className="sheet-area-row">
-                  <td style={{ textAlign: 'center' }}>{item.sno || idx + 1}</td>
-                  <td>{item.description}</td>
-                  <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
-                    {item.area_sqft !== '' ? Number(item.area_sqft).toFixed(2) : ''}
-                  </td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
-                    {item.rate_per_sqft !== '' ? `₹ ${Number(item.rate_per_sqft).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : ''}
-                  </td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
-                    {item.amount > 0 ? `₹ ${Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : ''}
-                  </td>
-                </tr>
-              ))}
-
-              {/* Built-up area subtotal (Peach row) */}
-              <tr className="print-peach-row">
-                <td></td>
-                <td style={{ fontWeight: 800 }}>கட்டிட பரப்பளவு</td>
-                <td style={{ textAlign: 'center', fontWeight: 800 }}>
-                  {totalBuiltupArea > 0 ? `${totalBuiltupArea} Sft.` : ''}
-                </td>
-                <td style={{ textAlign: 'center', fontWeight: 800 }}>
-                  {averageBuiltupRate > 0 ? `₹ ${averageBuiltupRate}/Sft.` : ''}
-                </td>
-                <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'monospace' }}>
-                  ₹ {Number(totalBuiltupCost).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </td>
-              </tr>
-
-              {/* Amenities */}
-              {amenityItems.map((item, idx) => (
-                <tr key={idx} className="sheet-amenity-row">
-                  <td style={{ textAlign: 'center' }}>{item.sno || areaItems.length + idx + 1}</td>
-                  <td>{item.description}</td>
-                  <td style={{ textAlign: 'center' }}>—</td>
-                  <td style={{ textAlign: 'center' }}>—</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
-                    {item.amount !== '' && parseFloat(item.amount) > 0 ? `₹ ${Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : ''}
-                  </td>
-                </tr>
-              ))}
-
               {/* Main Structure Total (Green row) */}
               <tr className="print-green-row">
-                <td colSpan={4} style={{ textAlign: 'center', fontWeight: 800 }}>மொத்தம்</td>
-                <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'monospace' }}>
+                <td style={{ textAlign: 'center', fontWeight: 800 }}>1</td>
+                <td style={{ textAlign: 'left', paddingLeft: '14px', fontWeight: 800 }}>மொத்தம் (Main Structure / Quoted Total)</td>
+                <td style={{ textAlign: 'right', paddingRight: '14px', fontWeight: 800, fontFamily: 'monospace' }}>
                   ₹ {Number(mainStructureTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
 
               {/* Additional Work Bill */}
               <tr className="sheet-additional-row">
-                <td colSpan={4} style={{ textAlign: 'center', fontWeight: 600 }}>Additional Work Bill</td>
-                <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'monospace' }}>
+                <td style={{ textAlign: 'center', fontWeight: 600 }}>2</td>
+                <td style={{ textAlign: 'left', paddingLeft: '14px', fontWeight: 600 }}>Additional Work Bill</td>
+                <td style={{ textAlign: 'right', paddingRight: '14px', fontWeight: 800, fontFamily: 'monospace' }}>
                   ₹ {Number(additionalWorkBill || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
 
               {/* Gross Total (Yellow row) */}
               <tr className="print-yellow-row">
-                <td colSpan={4} style={{ textAlign: 'center', fontWeight: 800 }}>
+                <td style={{ textAlign: 'center', fontWeight: 800 }}>3</td>
+                <td style={{ textAlign: 'left', paddingLeft: '14px', fontWeight: 800 }}>
                   மொத்த தொகை {billDate ? `(${billDate})` : ''}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'monospace' }}>
+                <td style={{ textAlign: 'right', paddingRight: '14px', fontWeight: 800, fontFamily: 'monospace' }}>
                   ₹ {Number(grossTotalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
 
               {/* Received Additional */}
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', fontSize: '0.82rem' }}>
+                <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>4</td>
+                <td style={{ textAlign: 'left', paddingLeft: '14px', fontSize: '0.85rem' }}>
                   TOTAL RECEIVED AMOUNT (in Additional)
                 </td>
-                <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
+                <td style={{ textAlign: 'right', paddingRight: '14px', fontFamily: 'monospace' }}>
                   {receivedAdditional !== '' && parseFloat(receivedAdditional) > 0 ? `₹ ${Number(receivedAdditional).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '₹ -'}
                 </td>
               </tr>
 
               {/* Received Quoted */}
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', fontSize: '0.82rem' }}>
+                <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>5</td>
+                <td style={{ textAlign: 'left', paddingLeft: '14px', fontSize: '0.85rem' }}>
                   TOTAL RECEIVED AMOUNT (in Quoted)
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'monospace' }}>
+                <td style={{ textAlign: 'right', paddingRight: '14px', fontFamily: 'monospace' }}>
                   ₹ {Number(receivedQuoted || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
@@ -1325,10 +1046,11 @@ export default function MonthlyBillingModule() {
               {/* Site Expenses Added */}
               {siteExpensesTotal > 0 && (
                 <tr style={{ backgroundColor: '#fffbeb' }}>
-                  <td colSpan={4} style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 700, color: '#92400e' }}>
+                  <td style={{ textAlign: 'center', fontWeight: 700, color: '#92400e' }}>•</td>
+                  <td style={{ textAlign: 'left', paddingLeft: '14px', fontSize: '0.85rem', fontWeight: 700, color: '#92400e' }}>
                     EXPENSES ADDED (Admin App / Site Live)
                   </td>
-                  <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'monospace', color: '#92400e' }}>
+                  <td style={{ textAlign: 'right', paddingRight: '14px', fontWeight: 800, fontFamily: 'monospace', color: '#92400e' }}>
                     ₹ {Number(siteExpensesTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
@@ -1336,30 +1058,33 @@ export default function MonthlyBillingModule() {
 
               {/* To Pay from client */}
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', fontSize: '0.8rem', fontWeight: 600 }}>
+                <td style={{ textAlign: 'center', fontSize: '0.85rem', fontWeight: 600 }}>6</td>
+                <td style={{ textAlign: 'left', paddingLeft: '14px', fontSize: '0.85rem', fontWeight: 600 }}>
                   AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL (To Pay from client) {settlementDate ? `AS ON ${settlementDate}` : ''}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'monospace' }}>
+                <td style={{ textAlign: 'right', paddingRight: '14px', fontWeight: 800, fontFamily: 'monospace' }}>
                   ₹ {Number(grossTotalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
 
               {/* Balance Amount (Blue row) */}
               <tr className="print-blue-row">
-                <td colSpan={4} style={{ textAlign: 'center', fontWeight: 800 }}>
+                <td style={{ textAlign: 'center', fontWeight: 800 }}>7</td>
+                <td style={{ textAlign: 'left', paddingLeft: '14px', fontWeight: 800 }}>
                   BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'monospace' }}>
+                <td style={{ textAlign: 'right', paddingRight: '14px', fontWeight: 800, fontFamily: 'monospace' }}>
                   ₹ {Number(balanceAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
 
               {/* Net Balance Amount (Light Green row) */}
               <tr className="print-lightgreen-row">
-                <td colSpan={4} style={{ textAlign: 'center', fontWeight: 800 }}>
+                <td style={{ textAlign: 'center', fontWeight: 800 }}>8</td>
+                <td style={{ textAlign: 'left', paddingLeft: '14px', fontWeight: 800 }}>
                   NET BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'monospace' }}>
+                <td style={{ textAlign: 'right', paddingRight: '14px', fontWeight: 800, fontFamily: 'monospace' }}>
                   ₹ {Number(netBalanceManual !== '' ? netBalanceManual : balanceAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
