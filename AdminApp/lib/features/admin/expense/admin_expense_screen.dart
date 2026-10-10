@@ -53,6 +53,246 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
     return Icons.receipt_long_rounded;
   }
 
+  String _formatDateHeader(String rawDate) {
+    if (rawDate.trim().isEmpty) return 'Other Dates';
+    try {
+      DateTime? dt;
+      if (rawDate.contains('-')) {
+        final parts = rawDate.split('-');
+        if (parts.length == 3) {
+          if (parts[0].length == 4) {
+            dt = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+          } else {
+            dt = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+          }
+        }
+      } else if (rawDate.contains('/')) {
+        final parts = rawDate.split('/');
+        if (parts.length == 3) {
+          if (parts[2].length == 4) {
+            dt = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+          } else {
+            dt = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+          }
+        }
+      }
+
+      if (dt != null) {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final checkDate = DateTime(dt.year, dt.month, dt.day);
+        final diffDays = today.difference(checkDate).inDays;
+
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        final formatted = '${dt.day.toString().padLeft(2, '0')} ${months[dt.month - 1]} ${dt.year}';
+        final weekday = weekdays[dt.weekday - 1];
+
+        if (diffDays == 0) {
+          return 'Today • $formatted';
+        } else if (diffDays == 1) {
+          return 'Yesterday • $formatted';
+        } else {
+          return '$weekday • $formatted';
+        }
+      }
+    } catch (_) {}
+    return rawDate;
+  }
+
+  Widget _buildHistoryRow(Map<String, dynamic> exp) {
+    final amount = (num.tryParse(exp['amount']?.toString() ?? '0') ?? 0);
+    final workCategory = (exp['work_category'] ?? 'Expense').toString();
+    final site = (exp['site_name'] ?? '-').toString();
+    final type = (exp['category'] ?? 'Labour').toString();
+    final paymentMode = (exp['payment_mode'] ?? 'Cash').toString();
+    final notes = (exp['notes'] ?? '').toString().trim();
+    final enteredBy = (exp['entered_by'] ?? '').toString().trim();
+    final isLabour = type.toLowerCase() == 'labour';
+
+    String partyName = '';
+    if (exp['supplier_name'] != null && exp['supplier_name'].toString().trim().isNotEmpty) {
+      partyName = exp['supplier_name'].toString().trim();
+    } else if (exp['vendor_name'] != null && exp['vendor_name'].toString().trim().isNotEmpty) {
+      partyName = exp['vendor_name'].toString().trim();
+    } else if (notes.toLowerCase().startsWith('supplier:')) {
+      partyName = notes.substring(9).trim();
+    } else if (notes.toLowerCase().startsWith('labour:')) {
+      partyName = notes.substring(7).trim();
+    } else if (notes.isNotEmpty) {
+      partyName = notes;
+    }
+
+    IconData paymentIcon = Icons.payments_rounded;
+    final pModeLower = paymentMode.toLowerCase();
+    if (pModeLower.contains('gpay') || pModeLower.contains('upi')) {
+      paymentIcon = Icons.qr_code_rounded;
+    } else if (pModeLower.contains('bank')) {
+      paymentIcon = Icons.account_balance_rounded;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showExpenseDetailsSheet(exp),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Category Icon Avatar
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: isLabour ? AppColors.lightYellowBg : const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isLabour ? AppColors.primaryYellow.withValues(alpha: 0.6) : const Color(0xFFBFDBFE),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  _getCategoryIcon(workCategory),
+                  color: isLabour ? AppColors.darkCharcoal : const Color(0xFF1D4ED8),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Middle Column: Category, Party, Site, Mode
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Row 1: Category Name + Type Badge
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            workCategory,
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isLabour ? AppColors.primaryYellow.withValues(alpha: 0.25) : const Color(0xFFDBEAFE),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            type,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: isLabour ? AppColors.darkCharcoal : const Color(0xFF1E40AF),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+
+                    // Row 2: Party & Site
+                    Row(
+                      children: [
+                        Icon(
+                          partyName.isNotEmpty
+                              ? (isLabour ? Icons.person_outline_rounded : Icons.storefront_rounded)
+                              : Icons.business_rounded,
+                          size: 13,
+                          color: AppColors.textMuted,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            partyName.isNotEmpty ? '$partyName • $site' : site,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+
+                    // Row 3: Payment Mode & Entered By
+                    Row(
+                      children: [
+                        Icon(paymentIcon, size: 12, color: AppColors.textMuted),
+                        const SizedBox(width: 4),
+                        Text(
+                          paymentMode,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        if (enteredBy.isNotEmpty) ...[
+                          const Text(
+                            ' • ',
+                            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                          ),
+                          Flexible(
+                            child: Text(
+                              'By $enteredBy',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textMuted,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Trailing: Amount and Chevron
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _formatCurrency(amount),
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.darkCharcoal,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: AppColors.textMuted,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showExpenseDetailsSheet(Map<String, dynamic> data) {
     showModalBottomSheet(
       context: context,
@@ -296,6 +536,21 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
                   }
                 }
 
+                // Group filtered expenses by date for transaction history timeline
+                final Map<String, List<Map<String, dynamic>>> groupedExpenses = {};
+                for (final exp in filteredExpenses) {
+                  final d = (exp['date'] ?? '').toString().trim();
+                  final key = d.isNotEmpty ? d : 'Other Dates';
+                  groupedExpenses.putIfAbsent(key, () => []).add(exp);
+                }
+
+                final groupKeys = groupedExpenses.keys.toList();
+                groupKeys.sort((a, b) {
+                  if (a == 'Other Dates') return 1;
+                  if (b == 'Other Dates') return -1;
+                  return b.compareTo(a);
+                });
+
                 return CustomScrollView(
                   physics: const BouncingScrollPhysics(),
                   slivers: [
@@ -324,7 +579,7 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
                                     ),
                                     SizedBox(height: 2),
                                     Text(
-                                      'Recent Expenses',
+                                      'Expense History',
                                       style: TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.w800,
@@ -342,10 +597,10 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.receipt_long_rounded, color: AppColors.primaryYellow, size: 14),
+                                      const Icon(Icons.history_rounded, color: AppColors.primaryYellow, size: 14),
                                       const SizedBox(width: 6),
                                       Text(
-                                        '${filteredExpenses.length} Records',
+                                        '${filteredExpenses.length} Entries',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 12,
@@ -694,252 +949,95 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
-                              final exp = filteredExpenses[index];
-                              final amount = (num.tryParse(exp['amount']?.toString() ?? '0') ?? 0);
-                              final workCategory = (exp['work_category'] ?? 'Expense').toString();
-                              final site = (exp['site_name'] ?? '-').toString();
-                              final type = (exp['category'] ?? 'Labour').toString();
-                              final date = (exp['date'] ?? '').toString();
-                              final paymentMode = (exp['payment_mode'] ?? 'Cash').toString();
-                              final notes = (exp['notes'] ?? '').toString();
-                              final enteredBy = (exp['entered_by'] ?? '').toString();
-                              final isLabour = type.toLowerCase() == 'labour';
+                              final dateKey = groupKeys[index];
+                              final items = groupedExpenses[dateKey]!;
 
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: AppColors.borderLight),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.03),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () => _showExpenseDetailsSheet(exp),
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                              double groupTotal = 0;
+                              for (final item in items) {
+                                groupTotal += (num.tryParse(item['amount']?.toString() ?? '0') ?? 0).toDouble();
+                              }
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Date Group Header
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          // Top Row: Category Icon + Title & Amount
                                           Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               Container(
-                                                width: 42,
-                                                height: 42,
-                                                decoration: BoxDecoration(
-                                                  color: isLabour ? AppColors.lightYellowBg : Colors.blue.shade50,
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  border: Border.all(
-                                                    color: isLabour ? AppColors.primaryYellow : Colors.blue.shade200,
-                                                    width: 1.2,
-                                                  ),
-                                                ),
-                                                child: Icon(
-                                                  _getCategoryIcon(workCategory),
-                                                  color: isLabour ? AppColors.darkCharcoal : Colors.blue.shade800,
-                                                  size: 20,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      workCategory,
-                                                      style: const TextStyle(
-                                                        fontSize: 15,
-                                                        fontWeight: FontWeight.w800,
-                                                        color: AppColors.textPrimary,
-                                                      ),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                    const SizedBox(height: 2),
-                                                    Row(
-                                                      children: [
-                                                        const Icon(Icons.business_rounded, size: 13, color: AppColors.textMuted),
-                                                        const SizedBox(width: 4),
-                                                        Expanded(
-                                                          child: Text(
-                                                            site,
-                                                            style: const TextStyle(
-                                                              fontSize: 12,
-                                                              fontWeight: FontWeight.w600,
-                                                              color: AppColors.textSecondary,
-                                                            ),
-                                                            maxLines: 1,
-                                                            overflow: TextOverflow.ellipsis,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ],
+                                                width: 8,
+                                                height: 8,
+                                                decoration: const BoxDecoration(
+                                                  color: AppColors.primaryYellow,
+                                                  shape: BoxShape.circle,
                                                 ),
                                               ),
                                               const SizedBox(width: 8),
                                               Text(
-                                                _formatCurrency(amount),
+                                                _formatDateHeader(dateKey),
                                                 style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w800,
                                                   color: AppColors.darkCharcoal,
+                                                  letterSpacing: 0.2,
                                                 ),
                                               ),
                                             ],
                                           ),
-
-                                          const SizedBox(height: 12),
-                                          const Divider(height: 1, color: AppColors.borderLight),
-                                          const SizedBox(height: 10),
-
-                                          // Middle Badges: Type, Date, Payment Mode
-                                          Row(
-                                            children: [
-                                              // Type Badge
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: isLabour ? AppColors.primaryYellow.withValues(alpha: 0.25) : Colors.blue.shade50,
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    Icon(
-                                                      isLabour ? Icons.groups_rounded : Icons.inventory_2_rounded,
-                                                      size: 13,
-                                                      color: isLabour ? AppColors.darkCharcoal : Colors.blue.shade800,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      type,
-                                                      style: TextStyle(
-                                                        fontSize: 11,
-                                                        fontWeight: FontWeight.w800,
-                                                        color: isLabour ? AppColors.darkCharcoal : Colors.blue.shade800,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-
-                                              // Payment Mode Badge
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.inputBackground,
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    Icon(
-                                                      paymentMode.toLowerCase() == 'gpay'
-                                                          ? Icons.qr_code_rounded
-                                                          : paymentMode.toLowerCase() == 'bank'
-                                                              ? Icons.account_balance_rounded
-                                                              : Icons.payments_rounded,
-                                                      size: 13,
-                                                      color: AppColors.textSecondary,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      paymentMode,
-                                                      style: const TextStyle(
-                                                        fontSize: 11,
-                                                        fontWeight: FontWeight.w700,
-                                                        color: AppColors.textSecondary,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              const Spacer(),
-
-                                              // Date
-                                              Row(
-                                                children: [
-                                                  const Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.textMuted),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    date,
-                                                    style: const TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: AppColors.textSecondary,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
+                                          Text(
+                                            '${items.length} ${items.length == 1 ? 'entry' : 'entries'} • ${_formatCurrency(groupTotal)}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textMuted,
+                                            ),
                                           ),
+                                        ],
+                                      ),
+                                    ),
 
-                                          // Notes / Worker Details (if available)
-                                          if (notes.isNotEmpty) ...[
-                                            const SizedBox(height: 8),
-                                            Container(
-                                              width: double.infinity,
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFF8FAFC),
-                                                borderRadius: BorderRadius.circular(8),
-                                                border: Border.all(color: AppColors.borderLight),
+                                    // Unified History Ledger Surface
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: AppColors.borderLight),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.03),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: Column(
+                                        children: [
+                                          for (int i = 0; i < items.length; i++) ...[
+                                            if (i > 0)
+                                              const Divider(
+                                                height: 1,
+                                                thickness: 1,
+                                                indent: 68,
+                                                endIndent: 14,
+                                                color: AppColors.borderLight,
                                               ),
-                                              child: Text(
-                                                notes,
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: AppColors.textSecondary,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-
-                                          // Footer: Entered By
-                                          if (enteredBy.isNotEmpty) ...[
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Text(
-                                                  'Entered by: $enteredBy',
-                                                  style: const TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: AppColors.textMuted,
-                                                  ),
-                                                ),
-                                                const Icon(
-                                                  Icons.chevron_right_rounded,
-                                                  size: 16,
-                                                  color: AppColors.textMuted,
-                                                ),
-                                              ],
-                                            ),
+                                            _buildHistoryRow(items[i]),
                                           ],
                                         ],
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ),
                               );
                             },
-                            childCount: filteredExpenses.length,
+                            childCount: groupKeys.length,
                           ),
                         ),
                       ),

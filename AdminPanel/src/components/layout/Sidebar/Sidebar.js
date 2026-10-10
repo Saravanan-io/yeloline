@@ -76,15 +76,15 @@ export default function Sidebar() {
       label: 'Materials Master',
       icon: FileText,
       isMasterGroup: 'Materials'
-    },
-    {
-      id: 'monthly_billing',
-      label: 'Monthly Billing',
-      icon: CalendarDays
     }
   ];
 
   const adminCoreItems = [
+    {
+      id: 'monthly_billing',
+      label: 'Monthly Billing',
+      icon: CalendarDays
+    },
     {
       id: 'new_site',
       label: 'New Site',

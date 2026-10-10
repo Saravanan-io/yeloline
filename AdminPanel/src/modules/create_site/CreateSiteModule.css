@@ -1797,3 +1797,72 @@
     justify-content: flex-end;
   }
 }
+
+/* Milestone Update Toggle Pill */
+.milestone-update-toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.milestone-update-toggle-pill .btn-update-choice {
+  border: none;
+  background: transparent;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.15s ease-in-out;
+  line-height: 1.2;
+}
+
+.milestone-update-toggle-pill .btn-update-choice:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.milestone-update-toggle-pill .btn-update-choice.active-0 {
+  background: #334155;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.milestone-update-toggle-pill .btn-update-choice.active-1 {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.35);
+}
+
+/* Edit modal update selector */
+.milestone-update-select {
+  padding: 5px 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: center;
+  outline: none;
+  transition: all 0.15s ease-in-out;
+}
+
+.milestone-update-select.val-1 {
+  border-color: #10b981;
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.milestone-update-select.val-0 {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+}
+

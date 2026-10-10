@@ -51,6 +51,249 @@ class _AdminPurchaseScreenState extends State<AdminPurchaseScreen> {
     return Icons.inventory_2_rounded;
   }
 
+  String _formatDateHeader(String rawDate) {
+    if (rawDate.trim().isEmpty) return 'Other Dates';
+    try {
+      DateTime? dt;
+      if (rawDate.contains('-')) {
+        final parts = rawDate.split('-');
+        if (parts.length == 3) {
+          if (parts[0].length == 4) {
+            dt = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+          } else {
+            dt = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+          }
+        }
+      } else if (rawDate.contains('/')) {
+        final parts = rawDate.split('/');
+        if (parts.length == 3) {
+          if (parts[2].length == 4) {
+            dt = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+          } else {
+            dt = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+          }
+        }
+      }
+
+      if (dt != null) {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final checkDate = DateTime(dt.year, dt.month, dt.day);
+        final diffDays = today.difference(checkDate).inDays;
+
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        final formatted = '${dt.day.toString().padLeft(2, '0')} ${months[dt.month - 1]} ${dt.year}';
+        final weekday = weekdays[dt.weekday - 1];
+
+        if (diffDays == 0) {
+          return 'Today • $formatted';
+        } else if (diffDays == 1) {
+          return 'Yesterday • $formatted';
+        } else {
+          return '$weekday • $formatted';
+        }
+      }
+    } catch (_) {}
+    return rawDate;
+  }
+
+  Widget _buildHistoryRow(Map<String, dynamic> po) {
+    final product = (po['material_category'] ?? 'Material').toString();
+    final vendor = (po['vendor_name'] ?? 'Supplier').toString();
+    final site = (po['site_name'] ?? '-').toString();
+    final dept = (po['department'] ?? 'Masonry').toString();
+    final totalAmount = (num.tryParse(po['total_amount']?.toString() ?? '0') ?? 0);
+    final amountPaid = (num.tryParse(po['calculated_paid']?.toString() ?? po['amount_paid']?.toString() ?? '0') ?? 0);
+    final creditBal = (num.tryParse(po['calculated_balance']?.toString() ?? '0') ?? (totalAmount - amountPaid)).clamp(0.0, double.infinity);
+    final status = (po['calculated_status'] ?? po['payment_status'] ?? 'Unpaid').toString();
+    final enteredBy = (po['entered_by'] ?? '').toString().trim();
+
+    Color statusColor;
+    Color statusBg;
+    if (status.toLowerCase() == 'paid') {
+      statusColor = Colors.green.shade800;
+      statusBg = Colors.green.shade50;
+    } else if (status.toLowerCase().contains('partial')) {
+      statusColor = AppColors.darkYellow;
+      statusBg = AppColors.lightYellowBg;
+    } else {
+      statusColor = Colors.red.shade700;
+      statusBg = Colors.red.shade50;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showPurchaseDetailsSheet(po),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Department Icon Avatar
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.lightYellowBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.primaryYellow.withValues(alpha: 0.6),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  _getDepartmentIcon(dept),
+                  color: AppColors.darkCharcoal,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Middle Column
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Row 1: Product Name + Status Badge
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            product,
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            status,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+
+                    // Row 2: Supplier & Site
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.storefront_rounded,
+                          size: 13,
+                          color: AppColors.textMuted,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            '$vendor • $site',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+
+                    // Row 3: Paid / Balance & Entered By
+                    Row(
+                      children: [
+                        Text(
+                          'Paid: ${_formatCurrency(amountPaid)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green.shade700,
+                          ),
+                        ),
+                        if (creditBal > 0) ...[
+                          const Text(
+                            ' • ',
+                            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                          ),
+                          Text(
+                            'Bal: ${_formatCurrency(creditBal)}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.darkYellow,
+                            ),
+                          ),
+                        ],
+                        if (enteredBy.isNotEmpty) ...[
+                          const Text(
+                            ' • ',
+                            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                          ),
+                          Flexible(
+                            child: Text(
+                              'By $enteredBy',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textMuted,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Trailing: Amount and Chevron
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _formatCurrency(totalAmount),
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.darkCharcoal,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: AppColors.textMuted,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   bool _isSupplierMatch(String supA, String supB) {
     if (supA.isEmpty || supB.isEmpty) return false;
     final a = supA.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), ' ').trim();
@@ -476,6 +719,21 @@ class _AdminPurchaseScreenState extends State<AdminPurchaseScreen> {
                       creditBalance += bal;
                     }
 
+                    // Group filtered purchases by date for transaction history timeline
+                    final Map<String, List<Map<String, dynamic>>> groupedPurchases = {};
+                    for (final po in filteredPurchases) {
+                      final d = (po['order_date'] ?? '').toString().trim();
+                      final key = d.isNotEmpty ? d : 'Other Dates';
+                      groupedPurchases.putIfAbsent(key, () => []).add(po);
+                    }
+
+                    final groupKeys = groupedPurchases.keys.toList();
+                    groupKeys.sort((a, b) {
+                      if (a == 'Other Dates') return 1;
+                      if (b == 'Other Dates') return -1;
+                      return b.compareTo(a);
+                    });
+
                 return CustomScrollView(
                   physics: const BouncingScrollPhysics(),
                   slivers: [
@@ -838,275 +1096,95 @@ class _AdminPurchaseScreenState extends State<AdminPurchaseScreen> {
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
-                              final po = filteredPurchases[index];
-                              final product = (po['material_category'] ?? 'Material').toString();
-                              final vendor = (po['vendor_name'] ?? 'Supplier').toString();
-                              final site = (po['site_name'] ?? '-').toString();
-                              final dept = (po['department'] ?? 'Masonry').toString();
-                              final totalAmount = (num.tryParse(po['total_amount']?.toString() ?? '0') ?? 0);
-                              final amountPaid = (num.tryParse(po['calculated_paid']?.toString() ?? po['amount_paid']?.toString() ?? '0') ?? 0);
-                              final creditBal = (num.tryParse(po['calculated_balance']?.toString() ?? '0') ?? (totalAmount - amountPaid)).clamp(0.0, double.infinity);
-                              final date = (po['order_date'] ?? '').toString();
-                              final status = (po['calculated_status'] ?? po['payment_status'] ?? 'Unpaid').toString();
-                              final enteredBy = (po['entered_by'] ?? '').toString();
+                              final dateKey = groupKeys[index];
+                              final items = groupedPurchases[dateKey]!;
 
-                              Color statusColor;
-                              Color statusBg;
-                              if (status.toLowerCase() == 'paid') {
-                                statusColor = Colors.green.shade800;
-                                statusBg = Colors.green.shade50;
-                              } else if (status.toLowerCase().contains('partial')) {
-                                statusColor = AppColors.darkYellow;
-                                statusBg = AppColors.lightYellowBg;
-                              } else {
-                                statusColor = Colors.red.shade700;
-                                statusBg = Colors.red.shade50;
+                              double groupTotal = 0;
+                              for (final item in items) {
+                                groupTotal += (num.tryParse(item['total_amount']?.toString() ?? '0') ?? 0).toDouble();
                               }
 
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: AppColors.borderLight),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.03),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () => _showPurchaseDetailsSheet(po),
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Date Group Header
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          // Top Row: Dept Icon + Product Title & Total Amount
                                           Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               Container(
-                                                width: 42,
-                                                height: 42,
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.lightYellowBg,
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  border: Border.all(
-                                                    color: AppColors.primaryYellow,
-                                                    width: 1.2,
-                                                  ),
-                                                ),
-                                                child: Icon(
-                                                  _getDepartmentIcon(dept),
-                                                  color: AppColors.darkCharcoal,
-                                                  size: 20,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      product,
-                                                      style: const TextStyle(
-                                                        fontSize: 15,
-                                                        fontWeight: FontWeight.w800,
-                                                        color: AppColors.textPrimary,
-                                                      ),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                    const SizedBox(height: 2),
-                                                    Row(
-                                                      children: [
-                                                        const Icon(Icons.business_rounded, size: 13, color: AppColors.textMuted),
-                                                        const SizedBox(width: 4),
-                                                        Expanded(
-                                                          child: Text(
-                                                            site,
-                                                            style: const TextStyle(
-                                                              fontSize: 12,
-                                                              fontWeight: FontWeight.w600,
-                                                              color: AppColors.textSecondary,
-                                                            ),
-                                                            maxLines: 1,
-                                                            overflow: TextOverflow.ellipsis,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ],
+                                                width: 8,
+                                                height: 8,
+                                                decoration: const BoxDecoration(
+                                                  color: AppColors.primaryYellow,
+                                                  shape: BoxShape.circle,
                                                 ),
                                               ),
                                               const SizedBox(width: 8),
                                               Text(
-                                                _formatCurrency(totalAmount),
+                                                _formatDateHeader(dateKey),
                                                 style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w800,
                                                   color: AppColors.darkCharcoal,
+                                                  letterSpacing: 0.2,
                                                 ),
                                               ),
                                             ],
                                           ),
-
-                                          const SizedBox(height: 12),
-                                          const Divider(height: 1, color: AppColors.borderLight),
-                                          const SizedBox(height: 10),
-
-                                          // Middle Badges: Supplier, Status, Date
-                                          Row(
-                                            children: [
-                                              // Supplier Pill
-                                              Flexible(
-                                                child: Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors.inputBackground,
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      const Icon(Icons.store_rounded, size: 13, color: AppColors.textSecondary),
-                                                      const SizedBox(width: 4),
-                                                      Flexible(
-                                                        child: Text(
-                                                          vendor,
-                                                          style: const TextStyle(
-                                                            fontSize: 11,
-                                                            fontWeight: FontWeight.w700,
-                                                            color: AppColors.textSecondary,
-                                                          ),
-                                                          overflow: TextOverflow.ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-
-                                              // Payment Status Badge
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: statusBg,
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                child: Text(
-                                                  status,
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: statusColor,
-                                                  ),
-                                                ),
-                                              ),
-                                              const Spacer(),
-
-                                              // Date
-                                              Row(
-                                                children: [
-                                                  const Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.textMuted),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    date,
-                                                    style: const TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: AppColors.textSecondary,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-
-                                          const SizedBox(height: 10),
-
-                                          // Payment Breakdown Card
-                                          Container(
-                                            width: double.infinity,
-                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFF8FAFC),
-                                              borderRadius: BorderRadius.circular(10),
-                                              border: Border.all(color: AppColors.borderLight),
-                                            ),
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    const Text(
-                                                      'Paid: ',
-                                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textMuted),
-                                                    ),
-                                                    Text(
-                                                      _formatCurrency(amountPaid),
-                                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.green.shade700),
-                                                    ),
-                                                  ],
-                                                ),
-                                                Container(width: 1, height: 16, color: AppColors.borderLight),
-                                                Row(
-                                                  children: [
-                                                    const Text(
-                                                      'Credit Balance: ',
-                                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textMuted),
-                                                    ),
-                                                    Text(
-                                                      _formatCurrency(creditBal),
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        fontWeight: FontWeight.w800,
-                                                        color: creditBal > 0 ? AppColors.darkYellow : Colors.green.shade700,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
+                                          Text(
+                                            '${items.length} ${items.length == 1 ? 'order' : 'orders'} • ${_formatCurrency(groupTotal)}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textMuted,
                                             ),
                                           ),
+                                        ],
+                                      ),
+                                    ),
 
-                                          // Footer: Entered By
-                                          if (enteredBy.isNotEmpty) ...[
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Text(
-                                                  'Entered by: $enteredBy',
-                                                  style: const TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: AppColors.textMuted,
-                                                  ),
-                                                ),
-                                                const Icon(
-                                                  Icons.chevron_right_rounded,
-                                                  size: 16,
-                                                  color: AppColors.textMuted,
-                                                ),
-                                              ],
-                                            ),
+                                    // Unified History Ledger Surface
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: AppColors.borderLight),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.03),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: Column(
+                                        children: [
+                                          for (int i = 0; i < items.length; i++) ...[
+                                            if (i > 0)
+                                              const Divider(
+                                                height: 1,
+                                                thickness: 1,
+                                                indent: 68,
+                                                endIndent: 14,
+                                                color: AppColors.borderLight,
+                                              ),
+                                            _buildHistoryRow(items[i]),
                                           ],
                                         ],
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ),
                               );
                             },
-                            childCount: filteredPurchases.length,
+                            childCount: groupKeys.length,
                           ),
                         ),
                       ),

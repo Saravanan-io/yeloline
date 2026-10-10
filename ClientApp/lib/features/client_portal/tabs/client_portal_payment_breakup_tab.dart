@@ -292,6 +292,7 @@ class _ClientPortalPaymentBreakupTabState extends State<ClientPortalPaymentBreak
                   floorData: floorData,
                   totalContractAmount: totalContractAmount,
                   isMobile: isMobile,
+                  isLastFloor: floorIndex == displayedFloors.length - 1,
                 );
               }),
 
@@ -557,11 +558,11 @@ class _ClientPortalPaymentBreakupTabState extends State<ClientPortalPaymentBreak
     required Map<String, dynamic> floorData,
     required double totalContractAmount,
     required bool isMobile,
+    required bool isLastFloor,
   }) {
     final floorTitle = (floorData['floor_title'] ?? 'FLOOR #${floorIndex + 1}').toString();
     final milestones = (floorData['milestones'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     final floorSubtotal = (floorData['total_amount'] as num?)?.toDouble() ?? _sumMilestones(milestones);
-    final pctOfTotal = totalContractAmount > 0 ? ((floorSubtotal / totalContractAmount) * 100).toStringAsFixed(1) : '0';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
@@ -629,28 +630,6 @@ class _ClientPortalPaymentBreakupTabState extends State<ClientPortalPaymentBreak
                     ),
                   ],
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
-                        children: [
-                          const TextSpan(text: 'Subtotal: ', style: TextStyle(fontWeight: FontWeight.w600)),
-                          TextSpan(
-                            text: '₹ ${CurrencyFormatter.format(floorSubtotal)}',
-                            style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (floorSubtotal > 0 && totalContractAmount > 0)
-                      Text(
-                        '($pctOfTotal% of total)',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
-                      ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -664,6 +643,8 @@ class _ClientPortalPaymentBreakupTabState extends State<ClientPortalPaymentBreak
               floorIndex: floorIndex,
               floorTitle: floorTitle,
               floorSubtotal: floorSubtotal,
+              totalContractAmount: totalContractAmount,
+              isLastFloor: isLastFloor,
               isMobile: isMobile,
             ),
         ],
@@ -677,6 +658,8 @@ class _ClientPortalPaymentBreakupTabState extends State<ClientPortalPaymentBreak
     required int floorIndex,
     required String floorTitle,
     required double floorSubtotal,
+    required double totalContractAmount,
+    required bool isLastFloor,
     required bool isMobile,
   }) {
     if (milestones.isEmpty) {
@@ -1041,53 +1024,49 @@ class _ClientPortalPaymentBreakupTabState extends State<ClientPortalPaymentBreak
           );
         }),
 
-        // Table Footer Summary Bar
-        Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: isMobile ? 14 : 16,
-            vertical: 10,
-          ),
-          decoration: const BoxDecoration(
-            color: Color(0xFFF8FAFC),
-            border: Border(
-              top: BorderSide(color: Color(0xFFE2E8F0), width: 1.2),
+        // Table Footer Summary Bar (Only on the last floor)
+        if (isLastFloor)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF1F5F9),
+              border: Border(top: BorderSide(color: Color(0xFFCBD5E1), width: 1.5)),
             ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.check_circle_outline_rounded, size: 14, color: Color(0xFF059669)),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${milestones.length} Stages registered',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF475569),
-                    ),
-                  ),
-                ],
-              ),
-              RichText(
-                text: TextSpan(
-                  style: const TextStyle(fontSize: 12.5, color: Color(0xFF475569)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
                   children: [
-                    const TextSpan(text: 'Section Total: ', style: TextStyle(fontWeight: FontWeight.w600)),
-                    TextSpan(
-                      text: '₹ ${CurrencyFormatter.format(floorSubtotal)}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF0F172A),
+                    Icon(Icons.check_circle_outline_rounded, size: 14, color: Color(0xFF059669)),
+                    SizedBox(width: 6),
+                    Text(
+                      'All Stages Registered',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF475569),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                    children: [
+                      const TextSpan(text: 'OVERALL TOTAL: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                      TextSpan(
+                        text: '₹ ${CurrencyFormatter.format(totalContractAmount)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }

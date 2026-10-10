@@ -14,7 +14,6 @@ import {
 import { useApp } from '../../context/AppContext';
 import DataTable from '../../components/common/DataTable/DataTable';
 import Modal from '../../components/common/Modal/Modal';
-import StatusBadge from '../../components/common/StatusBadge/StatusBadge';
 import './AdditionalBillingModule.css';
 
 const WORK_CATEGORIES = [
@@ -27,25 +26,16 @@ const WORK_CATEGORIES = [
   "Labour & Machinery Extra"
 ];
 
-const BILL_STATUSES = [
-  "Pending Approval",
-  "Approved",
-  "Billed",
-  "Paid",
-  "Cancelled"
-];
-
 const ADDITIONAL_BILLING_COLUMNS_SPEC = [
   { key: "sno", label: "S.No.", type: "Number", required: true, example: 1 },
-  { key: "work_description", label: "Description", type: "String", required: true, example: "Extra 2nd floor balcony extension & RCC beam reinforcement" },
+  { key: "work_description", label: "Additional Work Name", type: "String", required: true, example: "Extra 2nd floor balcony extension & RCC beam reinforcement" },
   { key: "quoted_amount", label: "Quoted Amount", type: "Number", required: true, example: 150000 },
   { key: "expense_amount", label: "Expense Amount", type: "Number", required: true, example: 125000 },
   { key: "amount", label: "Amount in Rs.", type: "Number", required: true, example: 150000 },
   { key: "site_name", label: "Site Name", type: "String", required: true, example: "Modern Minimalist Villa - Perundurai" },
   { key: "client_name", label: "Client Name", type: "String", required: false, example: "Ramesh Sundaram" },
   { key: "category", label: "Work Category", type: "String", required: true, example: "Structural Variation" },
-  { key: "bill_date", label: "Billing Date", type: "Date", required: true, example: "2026-10-06" },
-  { key: "status", label: "Status", type: "String", required: true, example: "Approved" }
+  { key: "bill_date", label: "Billing Date", type: "Date", required: true, example: "2026-10-06" }
 ];
 
 export default function AdditionalBillingModule() {
@@ -134,6 +124,7 @@ export default function AdditionalBillingModule() {
     site_name: '',
     client_name: '',
     category: WORK_CATEGORIES[0],
+    work_name: '',
     work_description: '',
     quoted_amount: '',
     expense_amount: '',
@@ -154,6 +145,7 @@ export default function AdditionalBillingModule() {
       site_name: initialSite,
       client_name: matched?.client_name || '',
       category: WORK_CATEGORIES[0],
+      work_name: '',
       work_description: '',
       quoted_amount: '',
       expense_amount: '',
@@ -172,6 +164,7 @@ export default function AdditionalBillingModule() {
       site_name: siteName,
       client_name: matched?.client_name || '',
       category: WORK_CATEGORIES[0],
+      work_name: '',
       work_description: '',
       quoted_amount: '',
       expense_amount: '',
@@ -190,12 +183,14 @@ export default function AdditionalBillingModule() {
     const amt = bill.amount !== undefined && bill.amount !== null && bill.amount !== ''
       ? bill.amount
       : (q !== '' ? (Number(q) - Number(exp || 0)).toString() : '');
+    const workName = bill.work_name || bill.work_description || bill.description || '';
 
     setFormData({
       site_name: bill.site_name || bill.siteName || '',
       client_name: bill.client_name || '',
       category: bill.category || WORK_CATEGORIES[0],
-      work_description: bill.work_description || bill.description || '',
+      work_name: workName,
+      work_description: workName,
       quoted_amount: q,
       expense_amount: exp,
       amount: amt,
@@ -242,8 +237,9 @@ export default function AdditionalBillingModule() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.work_description) {
-      alert('Please fill in the description of the additional work');
+    const workName = (formData.work_name || formData.work_description || '').trim();
+    if (!workName) {
+      alert('Please fill in the additional work name');
       return;
     }
     if (!formData.site_name) {
@@ -273,8 +269,9 @@ export default function AdditionalBillingModule() {
       bill_date: formData.bill_date,
       billing_date: formData.bill_date,
       date: formData.bill_date,
-      work_description: formData.work_description.trim(),
-      description: formData.work_description.trim(),
+      work_name: workName,
+      work_description: workName,
+      description: workName,
       updated_at: new Date().toISOString()
     };
 
@@ -297,16 +294,6 @@ export default function AdditionalBillingModule() {
       setUpdateSuccessNotice('Additional billing record deleted.');
       setTimeout(() => setUpdateSuccessNotice(''), 3000);
     }
-  };
-
-  const handleQuickStatusChange = async (bill, newStatus) => {
-    await updateAdditionalBilling(bill.bill_id || bill.id, {
-      ...bill,
-      status: newStatus,
-      updated_at: new Date().toISOString()
-    });
-    setUpdateSuccessNotice(`Updated status to "${newStatus}" for ${bill.site_name || 'site'}! Synced to Client Portal in real-time.`);
-    setTimeout(() => setUpdateSuccessNotice(''), 4000);
   };
 
   const filteredBillings = additionalBillings.filter(b => {
@@ -336,12 +323,12 @@ export default function AdditionalBillingModule() {
       render: (r, index) => <span className="sno-badge">{r.sno || index + 1}</span>
     },
     {
-      header: "Description",
+      header: "Additional Work Name",
       key: "work_description",
       render: (r) => (
         <div>
           <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-            {r.work_description || r.description}
+            {r.work_name || r.work_description || r.description}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ color: 'var(--accent-yellow-dark)', fontWeight: '700' }}>{r.bill_id || r.id}</span>
@@ -393,24 +380,6 @@ export default function AdditionalBillingModule() {
       header: "Date",
       key: "bill_date",
       render: (r) => <span style={{ whiteSpace: 'nowrap', fontSize: '0.84rem' }}>{r.bill_date || r.billing_date || r.date}</span>
-    },
-    {
-      header: "Status",
-      key: "status",
-      render: (r) => (
-        <div className="status-dropdown-wrap" onClick={(e) => e.stopPropagation()}>
-          <select
-            className={`quick-status-select status-${(r.status || 'Pending Approval').toLowerCase().replace(/\s+/g, '-')}`}
-            value={r.status || 'Pending Approval'}
-            onChange={(e) => handleQuickStatusChange(r, e.target.value)}
-            title="Click to update status instantly (syncs with client app)"
-          >
-            {BILL_STATUSES.map(st => (
-              <option key={st} value={st}>{st}</option>
-            ))}
-          </select>
-        </div>
-      )
     },
     {
       header: "Actions",
@@ -473,13 +442,12 @@ export default function AdditionalBillingModule() {
             onClick={() => {
               const exportRows = enrichedBillings.map(b => ({
                 sno: b.sno,
-                work_description: b.work_description || b.description,
+                work_description: b.work_name || b.work_description || b.description,
                 quoted_amount: `₹${Number(b.quoted_amount ?? b.amount ?? 0).toLocaleString('en-IN')}`,
                 expense_amount: `₹${Number(b.expense_amount ?? 0).toLocaleString('en-IN')}`,
                 amount: `₹${Number(b.amount ?? b.quoted_amount ?? 0).toLocaleString('en-IN')}`,
                 site_name: b.site_name,
-                bill_date: b.bill_date || b.billing_date,
-                status: b.status
+                bill_date: b.bill_date || b.billing_date
               }));
               exportToPDF(exportRows, 'Yeloline_Additional_Work_Expenses', 'Additional work Expenses', ADDITIONAL_BILLING_COLUMNS_SPEC);
             }}
@@ -656,14 +624,18 @@ export default function AdditionalBillingModule() {
 
             <div className="form-group">
               <label className="form-label">
-                Description of Additional Work <span style={{ color: '#EF4444' }}>*</span>
+                Additional Work Name <span style={{ color: '#EF4444' }}>*</span>
               </label>
-              <textarea
+              <input
+                type="text"
                 className="form-control"
-                rows="3"
-                placeholder="Enter description of additional work or extra scope..."
-                value={formData.work_description}
-                onChange={(e) => setFormData({ ...formData, work_description: e.target.value })}
+                placeholder="Enter additional work name (e.g. Balcony Extension, Grill Gate)"
+                value={formData.work_name || formData.work_description || ''}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  work_name: e.target.value,
+                  work_description: e.target.value
+                })}
                 required
               />
             </div>
@@ -716,31 +688,15 @@ export default function AdditionalBillingModule() {
               </div>
             </div>
 
-            <div className="form-row-2col">
-              <div className="form-group">
-                <label className="form-label">Billing Date</label>
-                <input
-                  type="date"
-                  className="form-control"
-                  value={formData.bill_date}
-                  onChange={(e) => setFormData({ ...formData, bill_date: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Status</label>
-                <select
-                  className="form-control"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  required
-                >
-                  {BILL_STATUSES.map(st => (
-                    <option key={st} value={st}>{st}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="form-group">
+              <label className="form-label">Billing Date</label>
+              <input
+                type="date"
+                className="form-control"
+                value={formData.bill_date}
+                onChange={(e) => setFormData({ ...formData, bill_date: e.target.value })}
+                required
+              />
             </div>
 
             <div className="form-group">
@@ -780,7 +736,6 @@ export default function AdditionalBillingModule() {
                 <h2 className="company-brand">YELOLINE CONSTRUCTIONS</h2>
                 <div className="company-sub">Additional Scope Invoice Voucher</div>
               </div>
-              <StatusBadge status={previewBill.status} />
             </div>
 
             <div className="invoice-meta-grid">
@@ -805,7 +760,7 @@ export default function AdditionalBillingModule() {
                 <thead>
                   <tr>
                     <th style={{ width: '8%', textAlign: 'center' }}>S.No.</th>
-                    <th style={{ width: '42%' }}>Description</th>
+                    <th style={{ width: '42%' }}>Additional Work Name</th>
                     <th style={{ width: '16%', textAlign: 'right' }}>Quoted Amount</th>
                     <th style={{ width: '17%', textAlign: 'right' }}>Expense Amount</th>
                     <th style={{ width: '17%', textAlign: 'right' }}>Amount in Rs.</th>
@@ -814,7 +769,7 @@ export default function AdditionalBillingModule() {
                 <tbody>
                   <tr>
                     <td style={{ textAlign: 'center' }}>1</td>
-                    <td style={{ fontWeight: 600 }}>{previewBill.work_description || previewBill.description}</td>
+                    <td style={{ fontWeight: 600 }}>{previewBill.work_name || previewBill.work_description || previewBill.description}</td>
                     <td style={{ textAlign: 'right', fontWeight: 600 }}>
                       ₹{Number(previewBill.quoted_amount ?? previewBill.amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>

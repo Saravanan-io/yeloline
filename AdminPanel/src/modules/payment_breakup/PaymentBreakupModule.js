@@ -14,8 +14,7 @@ import {
   User,
   MapPin,
   TrendingUp,
-  Layers,
-  Info
+  Layers
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import MetricCard from '../../components/common/MetricCard/MetricCard';
@@ -100,7 +99,9 @@ export default function PaymentBreakupModule() {
       sno: index + 1,
       stage_name: item.stage_name,
       amount: "", // Kept blank - admin needs to edit it
-      work_schedule: "" // Kept blank - admin needs to edit it
+      work_schedule: "", // Kept blank - admin needs to edit it
+      update: 0,
+      status: 0
     }));
   }, []);
 
@@ -211,7 +212,9 @@ export default function PaymentBreakupModule() {
       const updatedMilestones = [...floor.milestones];
       updatedMilestones[milestoneIndex] = {
         ...updatedMilestones[milestoneIndex],
-        [field]: value
+        [field]: value,
+        ...(field === 'update' ? { status: Number(value) } : {}),
+        ...(field === 'status' ? { update: Number(value) } : {})
       };
       floor.milestones = updatedMilestones;
       next[floorIndex] = floor;
@@ -232,7 +235,9 @@ export default function PaymentBreakupModule() {
           sno: newSno,
           stage_name: `ON COMPLETION OF STAGE ${newSno}`,
           amount: "",
-          work_schedule: ""
+          work_schedule: "",
+          update: 0,
+          status: 0
         }
       ];
       next[floorIndex] = floor;
@@ -569,8 +574,6 @@ export default function PaymentBreakupModule() {
 
       {/* Main Payment Breakup Multi-Floor Section Cards */}
       {floors.map((floor, floorIndex) => {
-        const floorTotal = (floor.milestones || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-
         return (
           <div key={floor.id || floorIndex} className="breakup-table-card" style={{ marginBottom: '1.5rem' }}>
             <div className="table-card-toolbar">
@@ -585,9 +588,6 @@ export default function PaymentBreakupModule() {
                     placeholder="e.g. GROUND FLOOR"
                   />
                 </div>
-                <span className="blank-notice-pill">
-                  <Info size={13} /> Subtotal: ₹ {formatCurrency(floorTotal)}
-                </span>
               </div>
 
               <div className="table-toolbar-right">
@@ -632,13 +632,14 @@ export default function PaymentBreakupModule() {
                     <th className="col-desc">DESCRIPTION OF WORK</th>
                     <th className="col-amount">AMOUNT (₹)</th>
                     <th className="col-schedule">WORK SCHEDULE</th>
+                    <th className="col-update" style={{ width: '85px', textAlign: 'center' }}>UPDATE</th>
                     <th className="col-actions">ACTION</th>
                   </tr>
                 </thead>
                 <tbody>
                   {/* Floor Group Subheader Row */}
                   <tr className="floor-group-row">
-                    <td colSpan={5}>
+                    <td colSpan={6}>
                       <div className="floor-group-cell">
                         <strong>{floor.floor_title || `FLOOR #${floorIndex + 1}`}</strong>
                       </div>
@@ -694,6 +695,19 @@ export default function PaymentBreakupModule() {
                           </div>
                         </td>
 
+                        {/* UPDATE (0 or 1) */}
+                        <td className="col-update cell-center" style={{ width: '85px', textAlign: 'center' }}>
+                          <select
+                            className="cell-input text-center"
+                            style={{ width: '60px', fontWeight: '700', padding: '4px' }}
+                            value={m.update !== undefined ? Number(m.update) : (m.status !== undefined ? Number(m.status) : 0)}
+                            onChange={(e) => handleStageFieldChange(floorIndex, index, 'update', Number(e.target.value))}
+                          >
+                            <option value={0}>0</option>
+                            <option value={1}>1</option>
+                          </select>
+                        </td>
+
                         {/* ACTIONS */}
                         <td className="col-actions cell-center">
                           <button
@@ -710,7 +724,7 @@ export default function PaymentBreakupModule() {
                   })}
                   {/* Last row of the form: Add Row */}
                   <tr className="table-add-row-tr">
-                    <td colSpan={5} style={{ padding: '8px 14px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'left' }}>
+                    <td colSpan={6} style={{ padding: '8px 14px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'left' }}>
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
@@ -723,24 +737,27 @@ export default function PaymentBreakupModule() {
                   </tr>
                 </tbody>
 
-                {/* Subtotal Footer Row */}
-                <tfoot>
-                  <tr className="total-footer-row">
-                    <td className="cell-center"></td>
-                    <td className="total-label-cell">
-                      <strong>SUBTOTAL: {floor.floor_title || `FLOOR #${floorIndex + 1}`}</strong>
-                    </td>
-                    <td className="total-amount-cell">
-                      <strong>₹ {formatCurrency(floorTotal)}</strong>
-                    </td>
-                    <td className="total-schedule-cell">
-                      <span className="schedule-summary-badge">
-                        {(floor.milestones || []).filter(m => m.work_schedule && String(m.work_schedule).trim() !== '').length} of {(floor.milestones || []).length} Scheduled
-                      </span>
-                    </td>
-                    <td></td>
-                  </tr>
-                </tfoot>
+                {/* Overall Total Footer Row on the last floor */}
+                {floorIndex === floors.length - 1 && (
+                  <tfoot>
+                    <tr className="total-footer-row">
+                      <td className="cell-center"></td>
+                      <td className="total-label-cell">
+                        <strong>OVERALL TOTAL:</strong>
+                      </td>
+                      <td className="total-amount-cell">
+                        <strong>₹ {formatCurrency(totalAmount)}</strong>
+                      </td>
+                      <td className="total-schedule-cell">
+                        <span className="schedule-summary-badge">
+                          {scheduledCount} of {allMilestones.length} Scheduled
+                        </span>
+                      </td>
+                      <td></td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </div>

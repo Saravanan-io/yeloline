@@ -37,6 +37,7 @@ import { useApp } from '../../context/AppContext';
 import DataTable from '../../components/common/DataTable/DataTable';
 import CustomSelect from '../../components/common/CustomSelect/CustomSelect';
 import CSVImportModal from '../../components/common/CSVImportModal/CSVImportModal';
+import { calculatePurchasesWithBalances } from '../../utils/materialPurchaseCalculations';
 import '../new_site/NewSiteModule.css';
 import './CreateSiteModule.css';
 
@@ -77,25 +78,25 @@ const handleImgError = (e) => {
 
 // Predefined 10 Work Categories matching the registered wizard
 const DEFAULT_BUDGET_ROWS = [
-  { sno: 1, description: 'Masonry work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 2, description: 'Shuttering work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 3, description: 'Tiles work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 4, description: 'Painting work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 5, description: 'Doors and windows', estimated_amount: '', expense_amount: '' },
-  { sno: 6, description: 'Lathe Work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 7, description: 'Electrical work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 8, description: 'Plumbing work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 9, description: "Engineer's Misc.", estimated_amount: '', expense_amount: '' },
-  { sno: 10, description: 'Additional Work', estimated_amount: '', expense_amount: '' }
+  { sno: 1, description: 'Masonry work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 2, description: 'Shuttering work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 3, description: 'Tiles work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 4, description: 'Painting work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 5, description: 'Doors and windows', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 6, description: 'Lathe Work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 7, description: 'Electrical work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 8, description: 'Plumbing work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 9, description: "Engineer's Misc.", estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 10, description: 'Additional Work', estimated_amount: '', expense_amount: '', material_credit_balance: '' }
 ];
 
 export const matchExpenseToBudgetCategory = (exp, sno, desc) => {
   if (!exp) return false;
-  const cat = String(exp.work_category || exp.category || exp.description || exp.notes || '').trim().toLowerCase();
+  const cat = String(exp.work_category || exp.category || exp.material_category || exp.department || exp.description || exp.notes || '').trim().toLowerCase();
   const target = String(desc || '').trim().toLowerCase();
   if (cat && target && (target.includes(cat) || cat.includes(target))) return true;
-  if (sno === 1 || target.includes('masonry')) return cat.includes('mason') || cat.includes('brick');
-  if (sno === 2 || target.includes('shuttering')) return cat.includes('shutter') || cat.includes('centering') || cat.includes('formwork') || cat.includes('bar bender');
+  if (sno === 1 || target.includes('masonry')) return cat.includes('mason') || cat.includes('brick') || cat.includes('cement') || cat.includes('sand') || cat.includes('concrete');
+  if (sno === 2 || target.includes('shuttering')) return cat.includes('shutter') || cat.includes('centering') || cat.includes('formwork') || cat.includes('bar bender') || cat.includes('steel');
   if (sno === 3 || target.includes('tiles') || target.includes('tile')) return cat.includes('tile') || cat.includes('flooring') || cat.includes('granite') || cat.includes('marble');
   if (sno === 4 || target.includes('painting') || target.includes('paint')) return cat.includes('paint') || cat.includes('whitewash');
   if (sno === 5 || target.includes('doors') || target.includes('windows')) return cat.includes('door') || cat.includes('window') || cat.includes('carpent') || cat.includes('wood') || cat.includes('upvc');
@@ -109,9 +110,9 @@ export const matchExpenseToBudgetCategory = (exp, sno, desc) => {
 
 export const isExpenseMatchingSite = (exp, site) => {
   if (!exp || !site) return false;
-  const expSiteName = String(exp.site_name || '').toLowerCase().trim();
+  const expSiteName = String(exp.site_name || exp.project_name || exp.site || '').toLowerCase().trim();
   const expSiteId = String(exp.site_id || '').toLowerCase().trim();
-  const targetSiteName = String(site.site_name || site.title || '').toLowerCase().trim();
+  const targetSiteName = String(site.site_name || site.title || site.name || '').toLowerCase().trim();
   const targetSiteId = String(site.site_id || site.id || '').toLowerCase().trim();
   if (targetSiteId && expSiteId && targetSiteId === expSiteId) return true;
   if (targetSiteName && expSiteName && (targetSiteName === expSiteName || targetSiteName.includes(expSiteName) || expSiteName.includes(targetSiteName))) return true;
@@ -128,20 +129,20 @@ const getInitialFloorStages = (floorTitle = 'GROUND FLOOR') => {
     : `ON COMPLETION OF ${upper} ROOF CONCRETE`;
 
   const nonGroundStages = [
-    { sno: 1, stage_name: "ON COMPLETION OF 7' LINTEL LEVEL RCC WORK", amount: '', work_schedule: '' },
-    { sno: 2, stage_name: roofStageName, amount: '', work_schedule: '' },
-    { sno: 3, stage_name: 'ON COMPLETION OF MEP CONCEALED WORK', amount: '', work_schedule: '' },
-    { sno: 4, stage_name: 'ON COMPLETION OF WALL PLASTERING', amount: '', work_schedule: '' },
-    { sno: 5, stage_name: 'ON COMPLETION OF TILE LAYING', amount: '', work_schedule: '' },
-    { sno: 6, stage_name: 'ON COMPLETION OF UPVC WINDOW & DOOR FIXING', amount: '', work_schedule: '' },
-    { sno: 7, stage_name: 'ON COMPLETION OF INTERIOR WALL PAINTING', amount: '', work_schedule: '' },
-    { sno: 8, stage_name: 'ON COMPLETION OF ALL FINISHING WORKS', amount: '', work_schedule: '' }
+    { sno: 1, stage_name: "ON COMPLETION OF 7' LINTEL LEVEL RCC WORK", amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 2, stage_name: roofStageName, amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 3, stage_name: 'ON COMPLETION OF MEP CONCEALED WORK', amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 4, stage_name: 'ON COMPLETION OF WALL PLASTERING', amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 5, stage_name: 'ON COMPLETION OF TILE LAYING', amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 6, stage_name: 'ON COMPLETION OF UPVC WINDOW & DOOR FIXING', amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 7, stage_name: 'ON COMPLETION OF INTERIOR WALL PAINTING', amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 8, stage_name: 'ON COMPLETION OF ALL FINISHING WORKS', amount: '', work_schedule: '', update: 0, status: 0 }
   ];
 
   if (isGround) {
     return [
-      { sno: 1, stage_name: 'MOBILIZATION ADVANCE (16%)', amount: '', work_schedule: '' },
-      { sno: 2, stage_name: 'ON COMPLETION OF BASEMENT', amount: '', work_schedule: '' },
+      { sno: 1, stage_name: 'MOBILIZATION ADVANCE (16%)', amount: '', work_schedule: '', update: 0, status: 0 },
+      { sno: 2, stage_name: 'ON COMPLETION OF BASEMENT', amount: '', work_schedule: '', update: 0, status: 0 },
       ...nonGroundStages.map((b, i) => ({ ...b, sno: i + 3 }))
     ];
   }
@@ -197,15 +198,14 @@ export default function CreateSiteModule() {
     users,
     updateUser,
     addUser,
-    expenses = []
+    expenses = [],
+    purchases = []
   } = useApp();
 
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStructureFilter, setSelectedStructureFilter] = useState('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSite, setEditingSite] = useState(null);
   const [viewingDetailSite, setViewingDetailSite] = useState(null);
   const [detailActiveTab, setDetailActiveTab] = useState(1);
@@ -280,8 +280,9 @@ export default function CreateSiteModule() {
   const editBudgetTotals = useMemo(() => {
     const totalEstimated = editBudgetRows.reduce((acc, row) => acc + (parseFloat(row.estimated_amount) || 0), 0);
     const totalExpense = editBudgetRows.reduce((acc, row) => acc + (parseFloat(row.expense_amount) || 0), 0);
+    const totalMaterialCredit = editBudgetRows.reduce((acc, row) => acc + (parseFloat(row.material_credit_balance) || 0), 0);
     const totalBalance = totalEstimated - totalExpense;
-    return { totalEstimated, totalExpense, totalBalance };
+    return { totalEstimated, totalExpense, totalMaterialCredit, totalBalance };
   }, [editBudgetRows]);
 
   const editPaymentTotals = useMemo(() => {
@@ -374,10 +375,21 @@ export default function CreateSiteModule() {
 
     // Budget rows
     const siteLiveExps = (expenses || []).filter(e => isExpenseMatchingSite(e, site));
+    const sitePurchasesWithBalances = calculatePurchasesWithBalances(purchases, expenses, site);
+
     const getLiveExpForCat = (sno, desc) => {
       return siteLiveExps
         .filter(e => matchExpenseToBudgetCategory(e, sno, desc))
         .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    };
+    const getLivePurchaseCreditForCat = (sno, desc) => {
+      const matchingPurchases = sitePurchasesWithBalances
+        .filter(p => matchExpenseToBudgetCategory({ ...p, work_category: `${p.department || ''} ${p.material_category || ''}`.trim() }, sno, desc));
+      const liveBalance = matchingPurchases.reduce((sum, p) => sum + (parseFloat(p.calculated_balance) || 0), 0);
+      return {
+        hasPurchases: matchingPurchases.length > 0,
+        liveBalance
+      };
     };
 
     if (Array.isArray(site.budget_items) && site.budget_items.length > 0) {
@@ -388,12 +400,21 @@ export default function CreateSiteModule() {
         const expVal = existing.expense_amount !== undefined && existing.expense_amount !== null && existing.expense_amount !== '' && Number(existing.expense_amount) > 0
           ? String(existing.expense_amount)
           : (liveExp > 0 ? String(liveExp) : '');
+
+        const { hasPurchases, liveBalance } = getLivePurchaseCreditForCat(defRow.sno, desc);
+        const matCreditVal = hasPurchases
+          ? (liveBalance > 0 ? String(liveBalance) : '0')
+          : (existing.material_credit_balance !== undefined && existing.material_credit_balance !== null && existing.material_credit_balance !== '' && Number(existing.material_credit_balance) > 0
+              ? String(existing.material_credit_balance)
+              : '');
+
         return {
           sno: defRow.sno,
           description: desc,
           work_item: desc,
           estimated_amount: existing.estimated_amount !== undefined && existing.estimated_amount !== null ? String(existing.estimated_amount) : '',
-          expense_amount: expVal
+          expense_amount: expVal,
+          material_credit_balance: matCreditVal
         };
       }));
       if (site.budget_items.length > 10) {
@@ -405,12 +426,21 @@ export default function CreateSiteModule() {
             const expVal = extra.expense_amount !== undefined && extra.expense_amount !== null && extra.expense_amount !== '' && Number(extra.expense_amount) > 0
               ? String(extra.expense_amount)
               : (liveExp > 0 ? String(liveExp) : '');
+
+            const { hasPurchases, liveBalance } = getLivePurchaseCreditForCat(extra.sno || 11 + extraIdx, desc);
+            const matCreditVal = hasPurchases
+              ? (liveBalance > 0 ? String(liveBalance) : '0')
+              : (extra.material_credit_balance !== undefined && extra.material_credit_balance !== null && extra.material_credit_balance !== '' && Number(extra.material_credit_balance) > 0
+                  ? String(extra.material_credit_balance)
+                  : '');
+
             return {
               sno: extra.sno || 11 + extraIdx,
               description: desc,
               work_item: desc,
               estimated_amount: extra.estimated_amount !== undefined && extra.estimated_amount !== null ? String(extra.estimated_amount) : '',
-              expense_amount: expVal
+              expense_amount: expVal,
+              material_credit_balance: matCreditVal
             };
           })
         ]);
@@ -418,10 +448,12 @@ export default function CreateSiteModule() {
     } else {
       setEditBudgetRows(DEFAULT_BUDGET_ROWS.map(r => {
         const liveExp = getLiveExpForCat(r.sno, r.description);
+        const { hasPurchases, liveBalance } = getLivePurchaseCreditForCat(r.sno, r.description);
         return {
           ...r,
           work_item: r.description,
-          expense_amount: liveExp > 0 ? String(liveExp) : ''
+          expense_amount: liveExp > 0 ? String(liveExp) : '',
+          material_credit_balance: hasPurchases ? (liveBalance > 0 ? String(liveBalance) : '0') : ''
         };
       }));
     }
@@ -442,7 +474,9 @@ export default function CreateSiteModule() {
           sno: m.sno || mIdx + 1,
           stage_name: m.stage_name || '',
           amount: m.amount !== undefined && m.amount !== null ? String(m.amount) : '',
-          work_schedule: m.work_schedule || m.target_date || ''
+          work_schedule: m.work_schedule || m.target_date || '',
+          update: m.update !== undefined ? Number(m.update) : (m.status !== undefined ? Number(m.status) : 0),
+          status: m.update !== undefined ? Number(m.update) : (m.status !== undefined ? Number(m.status) : 0)
         })) : getInitialFloorStages(floorTitle);
 
         if (!isGround) {
@@ -465,7 +499,9 @@ export default function CreateSiteModule() {
         sno: m.sno || mIdx + 1,
         stage_name: m.stage_name || '',
         amount: m.amount !== undefined && m.amount !== null ? String(m.amount) : '',
-        work_schedule: m.work_schedule || m.target_date || ''
+        work_schedule: m.work_schedule || m.target_date || '',
+        update: m.update !== undefined ? Number(m.update) : (m.status !== undefined ? Number(m.status) : 0),
+        status: m.update !== undefined ? Number(m.update) : (m.status !== undefined ? Number(m.status) : 0)
       }));
 
       if (!isGround) {
@@ -510,8 +546,6 @@ export default function CreateSiteModule() {
     setEditCoverImage(site.cover_image || '');
     setEditGalleryImages(Array.isArray(site.gallery_images) ? site.gallery_images : []);
     setEditDescription(site.description || '');
-
-    setIsModalOpen(true);
   };
 
   const handleCancelEdit = () => {
@@ -519,7 +553,6 @@ export default function CreateSiteModule() {
       setViewingDetailSite(returnToViewSite);
     }
     setEditingSite(null);
-    setIsModalOpen(false);
     setReturnToViewSite(null);
   };
 
@@ -539,7 +572,8 @@ export default function CreateSiteModule() {
         sno: prev.length + 1,
         description: '',
         estimated_amount: '',
-        expense_amount: ''
+        expense_amount: '',
+        material_credit_balance: ''
       }
     ]);
   };
@@ -616,7 +650,12 @@ export default function CreateSiteModule() {
     setEditFloorSections(prev => {
       const updated = [...prev];
       const milestones = [...updated[fIdx].milestones];
-      milestones[mIdx] = { ...milestones[mIdx], [field]: val };
+      milestones[mIdx] = { 
+        ...milestones[mIdx], 
+        [field]: val,
+        ...(field === 'update' ? { status: Number(val) } : {}),
+        ...(field === 'status' ? { update: Number(val) } : {})
+      };
       updated[fIdx] = { ...updated[fIdx], milestones };
       return updated;
     });
@@ -635,7 +674,9 @@ export default function CreateSiteModule() {
             sno: newSno,
             stage_name: `Stage ${newSno}`,
             amount: '',
-            work_schedule: ''
+            work_schedule: '',
+            update: 0,
+            status: 0
           }
         ]
       };
@@ -653,6 +694,92 @@ export default function CreateSiteModule() {
       };
       return updated;
     });
+  };
+
+  // Direct milestone update (0 or 1) in View Site Details
+  const handleMilestoneUpdateChange = async (targetFloorIdx, targetMilestoneIdx, newVal) => {
+    if (!viewingDetailSite) return;
+    const numericVal = Number(newVal) === 1 ? 1 : 0;
+
+    // 1. Locate existing breakup if available
+    const siteBreakup = (paymentBreakups || []).find(b => 
+      (b.site_id && (b.site_id === viewingDetailSite.site_id || String(b.site_id).toLowerCase() === String(viewingDetailSite.site_id).toLowerCase())) ||
+      (b.id && (b.id === viewingDetailSite.site_id || String(b.id).toLowerCase() === String(viewingDetailSite.site_id).toLowerCase())) ||
+      (b.site_name && viewingDetailSite.site_name && b.site_name.toLowerCase() === viewingDetailSite.site_name.toLowerCase())
+    );
+
+    // 2. Identify the active floors list
+    let currentFloors = [];
+    if (siteBreakup && Array.isArray(siteBreakup.floors) && siteBreakup.floors.length > 0) {
+      currentFloors = siteBreakup.floors;
+    } else if (siteBreakup && Array.isArray(siteBreakup.milestones) && siteBreakup.milestones.length > 0) {
+      currentFloors = [{
+        id: 'floor_1',
+        floor_title: siteBreakup.floor_title || 'GROUND FLOOR',
+        milestones: siteBreakup.milestones
+      }];
+    } else if (viewingDetailSite.floors && Array.isArray(viewingDetailSite.floors)) {
+      currentFloors = viewingDetailSite.floors;
+    } else {
+      currentFloors = [{
+        id: 'floor_1',
+        floor_title: 'GROUND FLOOR',
+        milestones: getInitialFloorStages('GROUND FLOOR')
+      }];
+    }
+
+    // 3. Update the specific milestone in the target floor
+    const updatedFloors = currentFloors.map((floor, fIdx) => {
+      if (fIdx !== targetFloorIdx) return floor;
+      const currentMilestones = floor.milestones || [];
+      const updatedMilestones = currentMilestones.map((m, mIdx) => {
+        if (mIdx !== targetMilestoneIdx) return m;
+        return {
+          ...m,
+          update: numericVal,
+          status: numericVal
+        };
+      });
+      return {
+        ...floor,
+        milestones: updatedMilestones
+      };
+    });
+
+    const allMilestones = updatedFloors.flatMap(f => f.milestones || []);
+    const totalAmount = allMilestones.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
+
+    const docId = siteBreakup?.id || viewingDetailSite.site_id || viewingDetailSite.id || viewingDetailSite.site_name;
+    const breakupPayload = {
+      ...(siteBreakup || {}),
+      id: docId,
+      site_id: viewingDetailSite.site_id || viewingDetailSite.id || docId,
+      site_name: viewingDetailSite.site_name,
+      client_name: viewingDetailSite.client_name || '',
+      floor_title: updatedFloors[0]?.floor_title || updatedFloors[0]?.floorTitle || 'GROUND FLOOR',
+      floors: updatedFloors,
+      milestones: allMilestones,
+      total_amount: totalAmount > 0 ? totalAmount : (siteBreakup?.total_amount || 0),
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      if (savePaymentBreakup) {
+        await savePaymentBreakup(breakupPayload);
+      }
+      if (updateSite) {
+        const updatedSitePayload = {
+          ...viewingDetailSite,
+          floors: updatedFloors,
+          milestones: allMilestones,
+          updated_at: new Date().toISOString()
+        };
+        await updateSite(updatedSitePayload);
+        setViewingDetailSite(prev => prev ? ({ ...prev, floors: updatedFloors, milestones: allMilestones }) : null);
+      }
+    } catch (e) {
+      console.error('Error updating milestone update status:', e);
+    }
   };
 
   const generateRandomPassword = () => {
@@ -688,6 +815,7 @@ export default function CreateSiteModule() {
       const formattedBudgetItems = editBudgetRows.map((r, idx) => {
         const est = parseFloat(r.estimated_amount) || 0;
         const exp = parseFloat(r.expense_amount) || 0;
+        const matCredit = parseFloat(r.material_credit_balance) || 0;
         const fallbackDesc = DEFAULT_BUDGET_ROWS[idx]?.description || DEFAULT_BUDGET_ROWS.find(d => d.sno === r.sno)?.description || `Work Item #${r.sno || idx + 1}`;
         const desc = (r.description || r.work_item || '').trim() || fallbackDesc;
         return {
@@ -696,6 +824,7 @@ export default function CreateSiteModule() {
           description: desc,
           estimated_amount: est,
           expense_amount: exp,
+          material_credit_balance: matCredit,
           balance: est - exp
         };
       });
@@ -709,7 +838,9 @@ export default function CreateSiteModule() {
           sno: m.sno || mIdx + 1,
           stage_name: (m.stage_name || '').trim(),
           amount: parseFloat(m.amount) || 0,
-          work_schedule: (m.work_schedule || '').trim()
+          work_schedule: (m.work_schedule || '').trim(),
+          update: m.update !== undefined ? Number(m.update) : (m.status !== undefined ? Number(m.status) : 0),
+          status: m.update !== undefined ? Number(m.update) : (m.status !== undefined ? Number(m.status) : 0)
         }))
       }));
       const allMilestones = formattedFloors.flatMap(f => f.milestones);
@@ -819,7 +950,6 @@ export default function CreateSiteModule() {
         setViewingDetailSite(updatedSite);
       }
 
-      setIsModalOpen(false);
       setEditingSite(null);
       setReturnToViewSite(null);
     } catch (err) {
@@ -1555,6 +1685,7 @@ export default function CreateSiteModule() {
                           <th className="col-amt">Estimated Amount (₹)</th>
                           <th className="col-amt">Expense Amount (₹)</th>
                           <th className="col-amt">Balance (₹)</th>
+                          <th className="col-amt">Material Credit Balance (₹)</th>
                           <th className="col-action">Action</th>
                         </tr>
                       </thead>
@@ -1608,6 +1739,19 @@ export default function CreateSiteModule() {
                                   <span>{formatINR(balance)}</span>
                                 </div>
                               </td>
+                              <td className="cell-amt">
+                                <div className="currency-input-wrapper">
+                                  <span className="currency-symbol">₹</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    className="spreadsheet-input currency-input"
+                                    placeholder="0"
+                                    value={row.material_credit_balance !== undefined ? row.material_credit_balance : ''}
+                                    onChange={(e) => handleBudgetCellChange(index, 'material_credit_balance', e.target.value)}
+                                  />
+                                </div>
+                              </td>
                               <td className="cell-action">
                                 <button
                                   type="button"
@@ -1641,6 +1785,12 @@ export default function CreateSiteModule() {
                             <div className="total-val-wrapper">
                               <span>₹</span>
                               <span>{formatINR(editBudgetTotals.totalBalance)}</span>
+                            </div>
+                          </td>
+                          <td className="total-amount-cell">
+                            <div className="total-val-wrapper">
+                              <span>₹</span>
+                              <span>{formatINR(editBudgetTotals.totalMaterialCredit)}</span>
                             </div>
                           </td>
                           <td></td>
@@ -1765,11 +1915,6 @@ export default function CreateSiteModule() {
                     if (effectiveEditFloorFilter !== 'ALL' && effectiveEditFloorFilter !== String(floorIndex)) {
                       return null;
                     }
-                    const floorSubtotal = (floor.milestones || []).reduce(
-                      (acc, curr) => acc + (parseFloat(curr.amount) || 0),
-                      0
-                    );
-
                     return (
                       <div key={floor.id || floorIndex} className="floor-breakup-section-card">
                         {/* Prominent Floor Name at the top of each form */}
@@ -1782,16 +1927,6 @@ export default function CreateSiteModule() {
                             <h3 className="floor-prominent-name">
                               {floor.floorTitle || `FLOOR ${floorIndex + 1}`}
                             </h3>
-                          </div>
-
-                          <div className="floor-subtotal-info">
-                            <span>Subtotal: </span>
-                            <strong>₹{formatINR(floorSubtotal)}</strong>
-                            {editPaymentTotals.totalAmount > 0 && floorSubtotal > 0 && (
-                              <span className="floor-subtotal-pct">
-                                ({((floorSubtotal / editPaymentTotals.totalAmount) * 100).toFixed(1)}% of total)
-                              </span>
-                            )}
                           </div>
                         </div>
 
@@ -1841,6 +1976,7 @@ export default function CreateSiteModule() {
                                 <th className="col-desc">Milestone / Construction Stage</th>
                                 <th className="col-amt">Scheduled Payment Amount (₹)</th>
                                 <th className="col-date">Work Schedule / Timeline</th>
+                                <th className="col-update" style={{ width: '85px', textAlign: 'center' }}>Update</th>
                                 <th className="col-action">Action</th>
                               </tr>
                             </thead>
@@ -1880,6 +2016,16 @@ export default function CreateSiteModule() {
                                         onChange={(e) => handleMilestoneChange(floorIndex, milestoneIndex, 'work_schedule', e.target.value)}
                                       />
                                     </td>
+                                    <td className="cell-update" style={{ textAlign: 'center', width: '85px' }}>
+                                      <select
+                                        className={`milestone-update-select ${Number(milestone.update) === 1 ? 'val-1' : 'val-0'}`}
+                                        value={milestone.update !== undefined ? Number(milestone.update) : (milestone.status !== undefined ? Number(milestone.status) : 0)}
+                                        onChange={(e) => handleMilestoneChange(floorIndex, milestoneIndex, 'update', Number(e.target.value))}
+                                      >
+                                        <option value={0}>0</option>
+                                        <option value={1}>1</option>
+                                      </select>
+                                    </td>
                                     <td className="cell-action">
                                       <button
                                         type="button"
@@ -1895,7 +2041,7 @@ export default function CreateSiteModule() {
                               })}
                               {/* Last row of the form: Add Row */}
                               <tr className="table-add-row-tr">
-                                <td colSpan={5} style={{ padding: '8px 14px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'left' }}>
+                                <td colSpan={6} style={{ padding: '8px 14px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'left' }}>
                                   <button
                                     type="button"
                                     className="btn btn-secondary btn-sm"
@@ -1908,43 +2054,27 @@ export default function CreateSiteModule() {
                                 </td>
                               </tr>
                             </tbody>
-                            <tfoot>
-                              <tr className="spreadsheet-total-row">
-                                <td colSpan={2} className="total-label-cell">
-                                  SUBTOTAL ({floor.floorTitle || `SECTION #${floorIndex + 1}`})
-                                </td>
-                                <td className="total-amount-cell">
-                                  <div className="total-val-wrapper">
-                                    <span>₹</span>
-                                    <span>{formatINR(floorSubtotal)}</span>
-                                  </div>
-                                </td>
-                                <td colSpan={2}></td>
-                              </tr>
-                            </tfoot>
+                            {floorIndex === editFloorSections.length - 1 && (
+                              <tfoot>
+                                <tr className="spreadsheet-total-row">
+                                  <td colSpan={2} className="total-label-cell">
+                                    OVERALL TOTAL:
+                                  </td>
+                                  <td className="total-amount-cell">
+                                    <div className="total-val-wrapper">
+                                      <span>₹</span>
+                                      <span>{formatINR(editPaymentTotals.totalAmount)}</span>
+                                    </div>
+                                  </td>
+                                  <td colSpan={3}></td>
+                                </tr>
+                              </tfoot>
+                            )}
                           </table>
                         </div>
                       </div>
                     );
                   })}
-                </div>
-
-                {/* Total Contract Metric Strip */}
-                <div className="budget-metrics-strip" style={{ marginTop: '16px' }}>
-                  <div className="budget-metric-pill">
-                    <span className="pill-lbl">Total Milestone Value:</span>
-                    <span className="pill-val highlight">₹{formatINR(editPaymentTotals.totalAmount)}</span>
-                  </div>
-                  <div className="budget-metric-pill">
-                    <span className="pill-lbl">Floor Sections Count:</span>
-                    <span className="pill-val">{editFloorSections.length} Floor Section{editFloorSections.length > 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="budget-metric-pill">
-                    <span className="pill-lbl">Total Milestones:</span>
-                    <span className="pill-val">
-                      {editFloorSections.reduce((acc, f) => acc + (f.milestones?.length || 0), 0)} Stages
-                    </span>
-                  </div>
                 </div>
 
                 {/* Footer Nav */}
@@ -2142,7 +2272,6 @@ export default function CreateSiteModule() {
                       type="button"
                       className="btn btn-secondary"
                       onClick={() => {
-                        setIsModalOpen(false);
                         setEditingSite(null);
                       }}
                     >
@@ -2194,10 +2323,21 @@ export default function CreateSiteModule() {
 
           // Find live expenses matching this site from Firestore live expenses collection
           const siteLiveExps = (expenses || []).filter(e => isExpenseMatchingSite(e, viewingDetailSite));
+          const sitePurchasesWithBalances = calculatePurchasesWithBalances(purchases, expenses, viewingDetailSite);
+
           const getLiveExpForCat = (sno, desc) => {
             return siteLiveExps
               .filter(e => matchExpenseToBudgetCategory(e, sno, desc))
               .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+          };
+          const getLivePurchaseCreditForCat = (sno, desc) => {
+            const matchingPurchases = sitePurchasesWithBalances
+              .filter(p => matchExpenseToBudgetCategory({ ...p, work_category: `${p.department || ''} ${p.material_category || ''}`.trim() }, sno, desc));
+            const liveBalance = matchingPurchases.reduce((sum, p) => sum + (parseFloat(p.calculated_balance) || 0), 0);
+            return {
+              hasPurchases: matchingPurchases.length > 0,
+              liveBalance
+            };
           };
           const getLiveCountForCat = (sno, desc) => {
             return siteLiveExps.filter(e => matchExpenseToBudgetCategory(e, sno, desc)).length;
@@ -2210,12 +2350,18 @@ export default function CreateSiteModule() {
             const liveExp = getLiveExpForCat(defRow.sno, desc);
             const rawStoredExp = parseFloat(existing.expense_amount) || 0;
             const exp = liveExp > 0 ? liveExp : rawStoredExp;
+
+            const { hasPurchases, liveBalance } = getLivePurchaseCreditForCat(defRow.sno, desc);
+            const rawStoredMatCredit = parseFloat(existing.material_credit_balance) || 0;
+            const matCredit = hasPurchases ? liveBalance : rawStoredMatCredit;
+
             return {
               sno: defRow.sno,
               work_item: desc,
               description: desc,
               estimated_amount: est,
               expense_amount: exp,
+              material_credit_balance: matCredit,
               balance: est - exp,
               live_count: getLiveCountForCat(defRow.sno, desc)
             };
@@ -2228,12 +2374,18 @@ export default function CreateSiteModule() {
               const liveExp = getLiveExpForCat(extra.sno || 11 + extraIdx, desc);
               const rawStoredExp = parseFloat(extra.expense_amount) || 0;
               const exp = liveExp > 0 ? liveExp : rawStoredExp;
+
+              const { hasPurchases, liveBalance } = getLivePurchaseCreditForCat(extra.sno || 11 + extraIdx, desc);
+              const rawStoredMatCredit = parseFloat(extra.material_credit_balance) || 0;
+              const matCredit = hasPurchases ? liveBalance : rawStoredMatCredit;
+
               budgetRows.push({
                 sno: extra.sno || 11 + extraIdx,
                 work_item: desc,
                 description: desc,
                 estimated_amount: est,
                 expense_amount: exp,
+                material_credit_balance: matCredit,
                 balance: est - exp,
                 live_count: getLiveCountForCat(extra.sno || 11 + extraIdx, desc)
               });
@@ -2242,6 +2394,7 @@ export default function CreateSiteModule() {
 
           const totalEstimated = budgetRows.reduce((s, r) => s + (parseFloat(r.estimated_amount) || 0), 0) || (parseFloat(viewingDetailSite.estimated_budget) || 0);
           const totalExpense = budgetRows.reduce((s, r) => s + (parseFloat(r.expense_amount) || 0), 0);
+          const totalMaterialCredit = budgetRows.reduce((s, r) => s + (parseFloat(r.material_credit_balance) || 0), 0);
           const totalBalance = totalEstimated - totalExpense;
 
           // Breakup floors
@@ -2500,12 +2653,14 @@ export default function CreateSiteModule() {
                           <th style={{ textAlign: 'right' }}>Estimated Amount (₹)</th>
                           <th style={{ textAlign: 'right' }}>Expense Amount (₹)</th>
                           <th style={{ textAlign: 'right' }}>Balance (₹)</th>
+                          <th style={{ textAlign: 'right' }}>Material Credit Balance (₹)</th>
                         </tr>
                       </thead>
                       <tbody>
                         {budgetRows.map((row, idx) => {
                           const est = parseFloat(row.estimated_amount) || 0;
                           const exp = parseFloat(row.expense_amount) || 0;
+                          const matCredit = parseFloat(row.material_credit_balance) || 0;
                           const bal = est - exp;
                           return (
                             <tr key={row.sno || idx}>
@@ -2523,6 +2678,7 @@ export default function CreateSiteModule() {
                               <td className={`cell-currency ${bal < 0 ? 'balance-neg' : 'balance-pos'}`}>
                                 ₹{formatINR(bal)}
                               </td>
+                              <td className="cell-currency" style={matCredit > 0 ? { fontWeight: 700, color: '#d97706' } : {}}>₹{formatINR(matCredit)}</td>
                             </tr>
                           );
                         })}
@@ -2535,6 +2691,7 @@ export default function CreateSiteModule() {
                           <td className={`cell-currency ${totalBalance < 0 ? 'balance-neg' : 'balance-pos'}`}>
                             ₹{formatINR(totalBalance)}
                           </td>
+                          <td className="cell-currency" style={totalMaterialCredit > 0 ? { color: '#d97706' } : {}}>₹{formatINR(totalMaterialCredit)}</td>
                         </tr>
                       </tfoot>
                     </table>
@@ -2671,10 +2828,6 @@ export default function CreateSiteModule() {
                   ) : (
                     <div>
                       {floorsList.map((floor, fIndex) => {
-                        const floorSubtotal = (floor.milestones || []).reduce(
-                          (acc, m) => acc + (parseFloat(m.amount) || 0),
-                          0
-                        );
                         return (
                           <div key={floor.id || fIndex} className="detail-floor-card">
                             <div className="detail-floor-header-bar">
@@ -2682,15 +2835,6 @@ export default function CreateSiteModule() {
                                 <Layers size={14} />
                                 {floor.floor_title || floor.floorTitle || `FLOOR ${fIndex + 1}`}
                               </span>
-                              <div className="detail-floor-subtotal-info">
-                                <span>Floor Subtotal:</span>
-                                <strong>₹{formatINR(floorSubtotal)}</strong>
-                                {grandTotalBreakup > 0 && floorSubtotal > 0 && (
-                                  <span className="detail-floor-subtotal-pct">
-                                    {((floorSubtotal / grandTotalBreakup) * 100).toFixed(1)}% of total
-                                  </span>
-                                )}
-                              </div>
                             </div>
 
                             <div className="detail-spreadsheet-container" style={{ margin: 0, border: 'none' }}>
@@ -2701,51 +2845,58 @@ export default function CreateSiteModule() {
                                     <th>Milestone / Construction Stage</th>
                                     <th style={{ textAlign: 'right' }}>Scheduled Amount (₹)</th>
                                     <th>Work Schedule / Timeline</th>
+                                    <th style={{ width: '90px', textAlign: 'center' }}>Update</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {(floor.milestones || []).map((m, mIdx) => {
                                     const amt = parseFloat(m.amount) || 0;
+                                    const updateVal = Number(m.update !== undefined ? m.update : (m.status !== undefined ? m.status : 0)) === 1 ? 1 : 0;
                                     return (
                                       <tr key={m.id || mIdx}>
                                         <td className="cell-sno">{m.sno || mIdx + 1}</td>
                                         <td className="cell-name">{m.stage_name}</td>
                                         <td className="cell-currency">₹{formatINR(amt)}</td>
                                         <td>{m.work_schedule || m.target_date || 'Stage Completion'}</td>
+                                        <td style={{ textAlign: 'center', width: '90px' }}>
+                                          <div className="milestone-update-toggle-pill">
+                                            <button
+                                              type="button"
+                                              className={`btn-update-choice ${updateVal === 0 ? 'active-0' : ''}`}
+                                              onClick={() => handleMilestoneUpdateChange(fIndex, mIdx, 0)}
+                                              title="Set Update to 0"
+                                            >
+                                              0
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className={`btn-update-choice ${updateVal === 1 ? 'active-1' : ''}`}
+                                              onClick={() => handleMilestoneUpdateChange(fIndex, mIdx, 1)}
+                                              title="Set Update to 1"
+                                            >
+                                              1
+                                            </button>
+                                          </div>
+                                        </td>
                                       </tr>
                                     );
                                   })}
                                 </tbody>
-                                <tfoot>
-                                  <tr className="detail-spreadsheet-total-row">
-                                    <td colSpan={2} className="total-lbl">SUBTOTAL ({floor.floor_title || floor.floorTitle}):</td>
-                                    <td className="cell-currency">₹{formatINR(floorSubtotal)}</td>
-                                    <td></td>
-                                  </tr>
-                                </tfoot>
+                                {fIndex === floorsList.length - 1 && (
+                                  <tfoot>
+                                    <tr className="detail-spreadsheet-total-row">
+                                      <td colSpan={2} className="total-lbl">OVERALL TOTAL:</td>
+                                      <td className="cell-currency">₹{formatINR(grandTotalBreakup)}</td>
+                                      <td></td>
+                                      <td></td>
+                                    </tr>
+                                  </tfoot>
+                                )}
                               </table>
                             </div>
                           </div>
                         );
                       })}
-
-                      {/* Grand Total Strip */}
-                      <div className="detail-metrics-strip">
-                        <div className="detail-metric-pill">
-                          <span className="lbl">Total Milestone Value:</span>
-                          <span className="val highlight">₹{formatINR(grandTotalBreakup)}</span>
-                        </div>
-                        <div className="detail-metric-pill">
-                          <span className="lbl">Floor Sections Count:</span>
-                          <span className="val">{floorsList.length} Floor{floorsList.length > 1 ? 's' : ''}</span>
-                        </div>
-                        <div className="detail-metric-pill">
-                          <span className="lbl">Total Milestones:</span>
-                          <span className="val">
-                            {floorsList.reduce((acc, f) => acc + (f.milestones?.length || 0), 0)} Stages
-                          </span>
-                        </div>
-                      </div>
                     </div>
                   )}
 

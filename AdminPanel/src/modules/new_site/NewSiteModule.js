@@ -31,16 +31,16 @@ import './NewSiteModule.css';
 
 // Predefined 10 Work Categories from reference image
 const DEFAULT_BUDGET_ROWS = [
-  { sno: 1, description: 'Masonry work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 2, description: 'Shuttering work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 3, description: 'Tiles work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 4, description: 'Painting work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 5, description: 'Doors and windows', estimated_amount: '', expense_amount: '' },
-  { sno: 6, description: 'Lathe Work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 7, description: 'Electrical work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 8, description: 'Plumbing work expenses', estimated_amount: '', expense_amount: '' },
-  { sno: 9, description: "Engineer's Misc.", estimated_amount: '', expense_amount: '' },
-  { sno: 10, description: 'Additional Work', estimated_amount: '', expense_amount: '' }
+  { sno: 1, description: 'Masonry work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 2, description: 'Shuttering work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 3, description: 'Tiles work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 4, description: 'Painting work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 5, description: 'Doors and windows', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 6, description: 'Lathe Work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 7, description: 'Electrical work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 8, description: 'Plumbing work expenses', estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 9, description: "Engineer's Misc.", estimated_amount: '', expense_amount: '', material_credit_balance: '' },
+  { sno: 10, description: 'Additional Work', estimated_amount: '', expense_amount: '', material_credit_balance: '' }
 ];
 
 const DEFAULT_FLOOR_NAMES = [
@@ -60,20 +60,20 @@ const getInitialFloorStages = (floorName = 'GROUND FLOOR') => {
     : `ON COMPLETION OF ${upper} ROOF CONCRETE`;
 
   const nonGroundStages = [
-    { sno: 1, stage_name: "ON COMPLETION OF 7' LINTEL LEVEL RCC WORK", amount: '', work_schedule: '' },
-    { sno: 2, stage_name: roofName, amount: '', work_schedule: '' },
-    { sno: 3, stage_name: 'ON COMPLETION OF MEP CONCEALED WORK', amount: '', work_schedule: '' },
-    { sno: 4, stage_name: 'ON COMPLETION OF WALL PLASTERING', amount: '', work_schedule: '' },
-    { sno: 5, stage_name: 'ON COMPLETION OF TILE LAYING', amount: '', work_schedule: '' },
-    { sno: 6, stage_name: 'ON COMPLETION OF UPVC WINDOW & DOOR FIXING', amount: '', work_schedule: '' },
-    { sno: 7, stage_name: 'ON COMPLETION OF INTERIOR WALL PAINTING', amount: '', work_schedule: '' },
-    { sno: 8, stage_name: 'ON COMPLETION OF ALL FINISHING WORKS', amount: '', work_schedule: '' }
+    { sno: 1, stage_name: "ON COMPLETION OF 7' LINTEL LEVEL RCC WORK", amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 2, stage_name: roofName, amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 3, stage_name: 'ON COMPLETION OF MEP CONCEALED WORK', amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 4, stage_name: 'ON COMPLETION OF WALL PLASTERING', amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 5, stage_name: 'ON COMPLETION OF TILE LAYING', amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 6, stage_name: 'ON COMPLETION OF UPVC WINDOW & DOOR FIXING', amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 7, stage_name: 'ON COMPLETION OF INTERIOR WALL PAINTING', amount: '', work_schedule: '', update: 0, status: 0 },
+    { sno: 8, stage_name: 'ON COMPLETION OF ALL FINISHING WORKS', amount: '', work_schedule: '', update: 0, status: 0 }
   ];
 
   if (isGround) {
     return [
-      { sno: 1, stage_name: 'MOBILIZATION ADVANCE (16%)', amount: '', work_schedule: '' },
-      { sno: 2, stage_name: 'ON COMPLETION OF BASEMENT', amount: '', work_schedule: '' },
+      { sno: 1, stage_name: 'MOBILIZATION ADVANCE (16%)', amount: '', work_schedule: '', update: 0, status: 0 },
+      { sno: 2, stage_name: 'ON COMPLETION OF BASEMENT', amount: '', work_schedule: '', update: 0, status: 0 },
       ...nonGroundStages.map((s, idx) => ({ ...s, sno: idx + 3 }))
     ];
   }
@@ -194,19 +194,22 @@ export default function NewSiteModule() {
   const budgetTotals = useMemo(() => {
     let totalEstimated = 0;
     let totalExpense = 0;
+    let totalMaterialCredit = 0;
     let totalBalance = 0;
 
     budgetRows.forEach(row => {
       const est = parseFloat(row.estimated_amount) || 0;
       const exp = parseFloat(row.expense_amount) || 0;
+      const matCredit = parseFloat(row.material_credit_balance) || 0;
       const bal = est - exp;
 
       totalEstimated += est;
       totalExpense += exp;
+      totalMaterialCredit += matCredit;
       totalBalance += bal;
     });
 
-    return { totalEstimated, totalExpense, totalBalance };
+    return { totalEstimated, totalExpense, totalMaterialCredit, totalBalance };
   }, [budgetRows]);
 
   const handleBudgetChange = (index, field, value) => {
@@ -219,7 +222,7 @@ export default function NewSiteModule() {
     const newSno = budgetRows.length + 1;
     setBudgetRows([
       ...budgetRows,
-      { sno: newSno, description: `Custom Work Item #${newSno}`, estimated_amount: '', expense_amount: '' }
+      { sno: newSno, description: `Custom Work Item #${newSno}`, estimated_amount: '', expense_amount: '', material_credit_balance: '' }
     ]);
   };
 
@@ -281,7 +284,9 @@ export default function NewSiteModule() {
       const updatedMilestones = [...floor.milestones];
       updatedMilestones[milestoneIndex] = {
         ...updatedMilestones[milestoneIndex],
-        [field]: value
+        [field]: value,
+        ...(field === 'update' ? { status: Number(value) } : {}),
+        ...(field === 'status' ? { update: Number(value) } : {})
       };
       floor.milestones = updatedMilestones;
       updated[floorIndex] = floor;
@@ -296,7 +301,7 @@ export default function NewSiteModule() {
       const newSno = (floor.milestones || []).length + 1;
       floor.milestones = [
         ...(floor.milestones || []),
-        { sno: newSno, stage_name: `ON COMPLETION OF STAGE ${newSno}`, amount: '', work_schedule: '' }
+        { sno: newSno, stage_name: `ON COMPLETION OF STAGE ${newSno}`, amount: '', work_schedule: '', update: 0, status: 0 }
       ];
       updated[floorIndex] = floor;
       return updated;
@@ -453,6 +458,7 @@ export default function NewSiteModule() {
       const formattedBudgetItems = budgetRows.map((row, idx) => {
         const est = parseFloat(row.estimated_amount) || 0;
         const exp = parseFloat(row.expense_amount) || 0;
+        const matCredit = parseFloat(row.material_credit_balance) || 0;
         const fallbackDesc = DEFAULT_BUDGET_ROWS[idx]?.description || DEFAULT_BUDGET_ROWS.find(d => d.sno === row.sno)?.description || `Work Item #${row.sno || idx + 1}`;
         const desc = (row.description || row.work_item || '').trim() || fallbackDesc;
         return {
@@ -461,6 +467,7 @@ export default function NewSiteModule() {
           description: desc,
           estimated_amount: est,
           expense_amount: exp,
+          material_credit_balance: matCredit,
           balance: est - exp
         };
       });
@@ -478,6 +485,8 @@ export default function NewSiteModule() {
             stage_name: m.stage_name,
             amount: parseFloat(m.amount) || 0,
             work_schedule: m.work_schedule || '',
+            update: m.update !== undefined ? Number(m.update) : (m.status !== undefined ? Number(m.status) : 0),
+            status: m.update !== undefined ? Number(m.update) : (m.status !== undefined ? Number(m.status) : 0),
             percentage: fTotal > 0
               ? Math.round(((parseFloat(m.amount) || 0) / fTotal) * 100)
               : 0
@@ -885,6 +894,7 @@ export default function NewSiteModule() {
                     <th className="th-amount">Estimated Amount (₹)</th>
                     <th className="th-amount">Expense Amount (₹)</th>
                     <th className="th-balance">Balance (₹)</th>
+                    <th className="th-amount">Material Credit Balance (₹)</th>
                     <th className="th-action">Action</th>
                   </tr>
                 </thead>
@@ -943,6 +953,20 @@ export default function NewSiteModule() {
                             </span>
                           </div>
                         </td>
+                        <td className="td-amount">
+                          <div className="amount-input-box">
+                            <span className="currency-symbol">₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              className="table-cell-input amount-input"
+                              placeholder="0"
+                              value={row.material_credit_balance !== undefined ? row.material_credit_balance : ''}
+                              onChange={(e) => handleBudgetChange(index, 'material_credit_balance', e.target.value)}
+                            />
+                          </div>
+                        </td>
                         <td className="td-action">
                           <button
                             type="button"
@@ -978,6 +1002,12 @@ export default function NewSiteModule() {
                       <div className="total-val-wrapper">
                         <span>₹</span>
                         <span>{formatINR(budgetTotals.totalBalance)}</span>
+                      </div>
+                    </td>
+                    <td className="total-amount-cell">
+                      <div className="total-val-wrapper">
+                        <span>₹</span>
+                        <span>{formatINR(budgetTotals.totalMaterialCredit)}</span>
                       </div>
                     </td>
                     <td></td>
@@ -1102,11 +1132,6 @@ export default function NewSiteModule() {
               if (effectiveFloorFilter !== 'ALL' && effectiveFloorFilter !== String(floorIndex)) {
                 return null;
               }
-              const floorSubtotal = (floor.milestones || []).reduce(
-                (acc, curr) => acc + (parseFloat(curr.amount) || 0),
-                0
-              );
-
               return (
                 <div key={floor.id || floorIndex} className="floor-breakup-section-card">
                   {/* Prominent Floor Name at the top of each form */}
@@ -1119,16 +1144,6 @@ export default function NewSiteModule() {
                       <h3 className="floor-prominent-name">
                         {floor.floorTitle || `FLOOR ${floorIndex + 1}`}
                       </h3>
-                    </div>
-
-                    <div className="floor-subtotal-info">
-                      <span>Subtotal: </span>
-                      <strong>₹{formatINR(floorSubtotal)}</strong>
-                      {paymentTotals.totalAmount > 0 && floorSubtotal > 0 && (
-                        <span className="floor-subtotal-pct">
-                          ({((floorSubtotal / paymentTotals.totalAmount) * 100).toFixed(1)}% of total)
-                        </span>
-                      )}
                     </div>
                   </div>
 
@@ -1183,6 +1198,7 @@ export default function NewSiteModule() {
                           <th className="th-stage">Stage / Milestone Description</th>
                           <th className="th-amount">Milestone Amount (₹)</th>
                           <th className="th-schedule">Work Schedule / Target</th>
+                          <th className="th-update" style={{ width: '85px', textAlign: 'center' }}>Update</th>
                           <th className="th-action">Action</th>
                         </tr>
                       </thead>
@@ -1223,6 +1239,17 @@ export default function NewSiteModule() {
                                   onChange={(e) => handleMilestoneChange(floorIndex, idx, 'work_schedule', e.target.value)}
                                 />
                               </td>
+                              <td className="td-update" style={{ textAlign: 'center', width: '85px' }}>
+                                <select
+                                  className="table-cell-input text-center"
+                                  style={{ width: '65px', fontWeight: '700', padding: '4px' }}
+                                  value={m.update !== undefined ? Number(m.update) : (m.status !== undefined ? Number(m.status) : 0)}
+                                  onChange={(e) => handleMilestoneChange(floorIndex, idx, 'update', Number(e.target.value))}
+                                >
+                                  <option value={0}>0</option>
+                                  <option value={1}>1</option>
+                                </select>
+                              </td>
                               <td className="td-action">
                                 <button
                                   type="button"
@@ -1238,7 +1265,7 @@ export default function NewSiteModule() {
                         })}
                         {/* Last row of the form: Add Row */}
                         <tr className="table-add-row-tr">
-                          <td colSpan={5} style={{ padding: '8px 14px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'left' }}>
+                          <td colSpan={6} style={{ padding: '8px 14px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'left' }}>
                             <button
                               type="button"
                               className="btn btn-secondary btn-sm"
@@ -1251,21 +1278,22 @@ export default function NewSiteModule() {
                           </td>
                         </tr>
                       </tbody>
-                      <tfoot>
-                        <tr className="spreadsheet-total-row">
-                          <td colSpan={2} className="total-label-cell">
-                            SUBTOTAL: {floor.floorTitle || `FLOOR #${floorIndex + 1}`}
-                          </td>
-                          <td className="total-amount-cell">
-                            <div className="total-val-wrapper">
-                              <span>₹</span>
-                              <span>{formatINR(floorSubtotal)}</span>
-                            </div>
-                          </td>
-                          <td></td>
-                          <td></td>
-                        </tr>
-                      </tfoot>
+                      {floorIndex === floorSections.length - 1 && (
+                        <tfoot>
+                          <tr className="spreadsheet-total-row">
+                            <td colSpan={2} className="total-label-cell">
+                              OVERALL TOTAL:
+                            </td>
+                            <td className="total-amount-cell">
+                              <div className="total-val-wrapper">
+                                <span>₹</span>
+                                <span>{formatINR(paymentTotals.totalAmount)}</span>
+                              </div>
+                            </td>
+                            <td colSpan={3}></td>
+                          </tr>
+                        </tfoot>
+                      )}
                     </table>
                   </div>
                 </div>

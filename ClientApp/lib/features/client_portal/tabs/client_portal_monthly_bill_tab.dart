@@ -142,18 +142,24 @@ class _ClientPortalMonthlyBillTabState extends State<ClientPortalMonthlyBillTab>
     final grossTotalRaw = data['gross_total'] ?? data['gross_total_amount'] ?? 0;
     final grossTotal = (grossTotalRaw != 0 && grossTotalRaw != '0') ? grossTotalRaw : calculatedGross;
 
+    final asPerStageRaw = data['as_per_stage_amount'] ?? grossTotal;
+    final asPerStageAmount = (asPerStageRaw != 0 && asPerStageRaw != '0') ? asPerStageRaw : grossTotal;
+
     final num calculatedReceived = (receivedAdditional is num ? receivedAdditional : (num.tryParse(receivedAdditional.toString()) ?? 0)) +
         (receivedQuoted is num ? receivedQuoted : (num.tryParse(receivedQuoted.toString()) ?? 0));
     final totalReceivedRaw = data['total_received'] ?? data['total_received_combined'] ?? 0;
     final totalReceived = (totalReceivedRaw != 0 && totalReceivedRaw != '0') ? totalReceivedRaw : calculatedReceived;
 
-    final num calculatedBalance = (grossTotal is num ? grossTotal : (num.tryParse(grossTotal.toString()) ?? 0)) -
+    final balanceBasis = (asPerStageAmount is num ? asPerStageAmount : (num.tryParse(asPerStageAmount.toString()) ?? grossTotal));
+    final num calculatedBalance = (balanceBasis is num ? balanceBasis : (num.tryParse(balanceBasis.toString()) ?? 0)) -
         (totalReceived is num ? totalReceived : (num.tryParse(totalReceived.toString()) ?? 0));
     final balanceAmountRaw = data['balance_amount'] ?? 0;
     final balanceAmount = (balanceAmountRaw != 0 && balanceAmountRaw != '0') ? balanceAmountRaw : calculatedBalance;
 
-    final netBalanceRaw = data['net_balance'] ?? data['net_balance_manual'] ?? 0;
-    final netBalance = (netBalanceRaw != 0 && netBalanceRaw != '0') ? netBalanceRaw : balanceAmount;
+    final num calculatedTotalBalance = (grossTotal is num ? grossTotal : (num.tryParse(grossTotal.toString()) ?? 0)) -
+        (totalReceived is num ? totalReceived : (num.tryParse(totalReceived.toString()) ?? 0));
+    final netBalanceRaw = data['total_balance'] ?? data['net_balance'] ?? 0;
+    final netBalance = (netBalanceRaw != 0 && netBalanceRaw != '0') ? netBalanceRaw : calculatedTotalBalance;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
@@ -309,6 +315,7 @@ class _ClientPortalMonthlyBillTabState extends State<ClientPortalMonthlyBillTab>
               mainStructureTotal: mainStructureTotal,
               additionalWorkBill: additionalWorkBill,
               grossTotal: grossTotal,
+              asPerStageAmount: asPerStageAmount,
               receivedAdditional: receivedAdditional,
               receivedQuoted: receivedQuoted,
               balanceAmount: balanceAmount,
@@ -358,6 +365,7 @@ class _ClientPortalMonthlyBillTabState extends State<ClientPortalMonthlyBillTab>
     required dynamic mainStructureTotal,
     required dynamic additionalWorkBill,
     required dynamic grossTotal,
+    required dynamic asPerStageAmount,
     required dynamic receivedAdditional,
     required dynamic receivedQuoted,
     required dynamic balanceAmount,
@@ -474,12 +482,12 @@ class _ClientPortalMonthlyBillTabState extends State<ClientPortalMonthlyBillTab>
                     // 5. Section 3: Totals & Reconciliation
                     _buildGreenTotalRow('மொத்தம் (Main Building Total)', mainStructureTotal),
                     _buildAdditionalBillRow(additionalWorkBill),
-                    _buildYellowGrossTotalRow('மொத்த தொகை ($billDate)', grossTotal),
+                    _buildYellowGrossTotalRow('TOTAL QUOTED AMOUNT + ADDITIONAL WORK ($billDate)', grossTotal),
                     _buildReconRow('TOTAL RECEIVED AMOUNT (in Additional)', receivedAdditional),
                     _buildReconRow('TOTAL RECEIVED AMOUNT (in Quoted)', receivedQuoted),
-                    _buildReconRow('AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL', grossTotal),
-                    _buildBlueBalanceRow('BALANCE AMOUNT AS ON $settlementDate', balanceAmount),
-                    _buildGreenNetBalanceRow('NET BALANCE AMOUNT AS ON $settlementDate', netBalance),
+                    _buildReconRow('AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL', asPerStageAmount),
+                    _buildBlueBalanceRow('AS PER STAGE BALANCE AMOUNT AS ON $settlementDate', balanceAmount),
+                    _buildGreenNetBalanceRow('TOTAL BALANCE AMOUNT AS ON $settlementDate', netBalance),
                   ],
                 ),
               ),
@@ -1299,15 +1307,15 @@ class _ClientPortalMonthlyBillTabState extends State<ClientPortalMonthlyBillTab>
               const Divider(height: 12),
               _buildMobileSummaryRow('Additional Work Bill', additionalWorkBill),
               const Divider(height: 12),
-              _buildMobileSummaryRow('GROSS TOTAL ($billDate)', grossTotal, isBold: true, bgColor: const Color(0xFFFFF9C4)),
+              _buildMobileSummaryRow('TOTAL QUOTED + ADDITIONAL ($billDate)', grossTotal, isBold: true, bgColor: const Color(0xFFFFF9C4)),
               const Divider(height: 12),
               _buildMobileSummaryRow('TOTAL RECEIVED (Additional)', receivedAdditional),
               const Divider(height: 12),
               _buildMobileSummaryRow('TOTAL RECEIVED (Quoted)', receivedQuoted),
               const Divider(height: 12),
-              _buildMobileSummaryRow('BALANCE AS ON $settlementDate', balanceAmount, isBold: true, bgColor: const Color(0xFFBBDEFB)),
+              _buildMobileSummaryRow('AS PER STAGE BALANCE AS ON $settlementDate', balanceAmount, isBold: true, bgColor: const Color(0xFFBBDEFB)),
               const Divider(height: 12),
-              _buildMobileSummaryRow('NET BALANCE AS ON $settlementDate', netBalance, isBold: true, bgColor: const Color(0xFFC8E6C9), textColor: const Color(0xFF047857)),
+              _buildMobileSummaryRow('TOTAL BALANCE AS ON $settlementDate', netBalance, isBold: true, bgColor: const Color(0xFFC8E6C9), textColor: const Color(0xFF047857)),
             ],
           ),
         ),

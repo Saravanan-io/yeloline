@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   CalendarDays,
   Save,
@@ -64,7 +64,8 @@ export default function MonthlyBillingModule() {
     sites = [],
     monthlyBillings = [],
     paymentBreakups = [],
-    expenses = [],
+    payments = [],
+    additionalBillings = [],
     saveMonthlyBilling,
     exportToXLS,
     exportToPDF
@@ -191,11 +192,170 @@ export default function MonthlyBillingModule() {
   const [additionalWorkBill, setAdditionalWorkBill] = useState('');
   const [receivedAdditional, setReceivedAdditional] = useState('');
   const [receivedQuoted, setReceivedQuoted] = useState('');
-  const [netBalanceManual, setNetBalanceManual] = useState('');
 
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  // Current selected site details & Itemized Budget estimate total
+  const currentSiteObj = useMemo(() => {
+    if (!selectedSite) return null;
+    return allAvailableSites.find(
+      s => s.site_name.toLowerCase() === selectedSite.toLowerCase()
+    ) || null;
+  }, [allAvailableSites, selectedSite]);
+
+  // Client payments received from Payments menu for selected site
+  const clientPaymentsForSite = useMemo(() => {
+    if (!selectedSite || !payments || !Array.isArray(payments) || payments.length === 0) {
+      return { quotedTotal: 0, additionalTotal: 0, count: 0, quotedCount: 0, additionalCount: 0 };
+    }
+
+    const sName = selectedSite.toLowerCase().trim();
+    const currentSite = allAvailableSites.find(
+      s => (s.site_name || '').toLowerCase().trim() === sName
+    );
+    const currentSiteId = String(currentSite?.id || '').toLowerCase().trim();
+
+    let quotedTotal = 0;
+    let additionalTotal = 0;
+    let quotedCount = 0;
+    let additionalCount = 0;
+
+    payments.forEach(p => {
+      if (!p) return;
+      const pSiteName = String(p.site_name || p.site || p.project_name || '').toLowerCase().trim();
+      const pSiteId = String(p.site_id || '').toLowerCase().trim();
+
+      const isMatch = (
+        (pSiteName && (pSiteName === sName || pSiteName.includes(sName) || sName.includes(pSiteName))) ||
+        (currentSiteId && (pSiteId === currentSiteId || pSiteName === currentSiteId))
+      );
+
+      if (!isMatch) return;
+
+      const amt = parseFloat(p.amount_received ?? p.amount ?? 0) || 0;
+      if (amt <= 0) return;
+
+      const receivedFor = String(p.received_for || p.payment_type || '').toLowerCase().trim();
+      if (receivedFor.includes('additional')) {
+        additionalTotal += amt;
+        additionalCount += 1;
+      } else {
+        // Defaults to Quoted Amount
+        quotedTotal += amt;
+        quotedCount += 1;
+      }
+    });
+
+    return {
+      quotedTotal,
+      additionalTotal,
+      count: quotedCount + additionalCount,
+      quotedCount,
+      additionalCount
+    };
+  }, [selectedSite, payments, allAvailableSites]);
+
+  // Total quoted amount from Additional Billing menu for the selected site
+  const additionalBillingQuotedTotal = useMemo(() => {
+    if (!selectedSite || !additionalBillings || !Array.isArray(additionalBillings) || additionalBillings.length === 0) {
+      return 0;
+    }
+
+    const sName = selectedSite.toLowerCase().trim();
+    const currentSite = allAvailableSites.find(
+      s => (s.site_name || '').toLowerCase().trim() === sName
+    );
+    const currentSiteId = String(currentSite?.id || '').toLowerCase().trim();
+
+    let total = 0;
+    additionalBillings.forEach(b => {
+      if (!b) return;
+      const bSiteName = String(b.site_name || b.siteName || '').toLowerCase().trim();
+      const bSiteId = String(b.site_id || b.siteId || '').toLowerCase().trim();
+
+      const isMatch = (
+        (bSiteName && (bSiteName === sName || bSiteName.includes(sName) || sName.includes(bSiteName))) ||
+        (currentSiteId && (bSiteId === currentSiteId || bSiteName === currentSiteId))
+      );
+
+      if (!isMatch) return;
+
+      const qAmt = parseFloat(b.quoted_amount !== undefined && b.quoted_amount !== null && b.quoted_amount !== '' ? b.quoted_amount : (b.amount ?? 0)) || 0;
+      total += qAmt;
+    });
+
+    return total;
+  }, [selectedSite, additionalBillings, allAvailableSites]);
+
+  // 4. Calculate total completed stages amount (milestones where update === 1 or status === 1)
+  const completedStagesAmount = useMemo(() => {
+    if (!selectedSite) return 0;
+    const sName = selectedSite.toLowerCase().trim();
+    const currentSite = allAvailableSites.find(
+      s => (s.site_name || '').toLowerCase().trim() === sName
+    );
+    const currentSiteId = String(currentSite?.id || '').toLowerCase().trim();
+
+    // 1. Locate breakup from paymentBreakups collection
+    const breakup = (paymentBreakups || []).find(b => {
+      const bName = String(b.site_name || '').toLowerCase().trim();
+      const bId = String(b.id || b.site_id || '').toLowerCase().trim();
+      return (
+        (bName && (bName === sName || bName.includes(sName) || sName.includes(bName))) ||
+        (currentSiteId && (bId === currentSiteId || bName === currentSiteId)) ||
+        (bId && bId === sName)
+      );
+    });
+
+    let milestones = [];
+    if (breakup) {
+      if (Array.isArray(breakup.floors) && breakup.floors.length > 0) {
+        milestones = breakup.floors.flatMap(f => f.milestones || []);
+      } else if (Array.isArray(breakup.milestones) && breakup.milestones.length > 0) {
+        milestones = breakup.milestones;
+      }
+    }
+
+    // 2. Fall back to site record if not found or milestones empty
+    if (milestones.length === 0) {
+      const siteRecord = currentSite?.raw || (sites || []).find(s => {
+        const name = String(s.site_name || s.name || s.title || '').toLowerCase().trim();
+        const id = String(s.site_id || s.id || '').toLowerCase().trim();
+        return name === sName || id === sName || (currentSiteId && id === currentSiteId);
+      });
+      if (siteRecord) {
+        if (Array.isArray(siteRecord.floors) && siteRecord.floors.length > 0) {
+          milestones = siteRecord.floors.flatMap(f => f.milestones || []);
+        } else if (Array.isArray(siteRecord.milestones) && siteRecord.milestones.length > 0) {
+          milestones = siteRecord.milestones;
+        }
+      }
+    }
+
+    // Filter milestones where update === 1 or status === 1
+    const completedStages = milestones.filter(m => {
+      const u = m.update !== undefined ? Number(m.update) : (m.status !== undefined ? Number(m.status) : 0);
+      return u === 1;
+    });
+
+    return completedStages.reduce((acc, m) => acc + parseCleanNumber(m.amount), 0);
+  }, [selectedSite, paymentBreakups, sites, allAvailableSites]);
+
+  const hasUserEditedQuotedRef = useRef(false);
+  const hasUserEditedAdditionalRef = useRef(false);
+  const hasUserEditedAdditionalWorkBillRef = useRef(false);
+  const previousSiteRef = useRef(selectedSite);
+
+  useEffect(() => {
+    if (previousSiteRef.current !== selectedSite) {
+      previousSiteRef.current = selectedSite;
+      hasUserEditedQuotedRef.current = false;
+      hasUserEditedAdditionalRef.current = false;
+      hasUserEditedAdditionalWorkBillRef.current = false;
+    }
+  }, [selectedSite]);
 
   // Load existing billing for selected site or populate default from site itemized budget
   useEffect(() => {
@@ -223,7 +383,6 @@ export default function MonthlyBillingModule() {
 
       // Quoted Total resolution:
       // If the admin added amount in estimate amount in itemized budget, populate that total.
-      // Otherwise, make field empty (removing legacy 3000000 / dummy data).
       if (itemizedEstTotal > 0) {
         setMainStructureTotalInput(String(itemizedEstTotal));
       } else {
@@ -235,20 +394,37 @@ export default function MonthlyBillingModule() {
         }
       }
 
-      setAdditionalWorkBill(existing.additional_work_bill !== undefined && existing.additional_work_bill !== null ? existing.additional_work_bill : '');
-      setReceivedAdditional(existing.received_additional !== undefined && existing.received_additional !== null ? existing.received_additional : '');
-      setReceivedQuoted(existing.received_quoted !== undefined && existing.received_quoted !== null ? existing.received_quoted : '');
+      // Additional Work Bill: populated from Additional Billing Quoted Amount or saved value
+      if (!hasUserEditedAdditionalWorkBillRef.current) {
+        if (additionalBillingQuotedTotal > 0) {
+          setAdditionalWorkBill(String(additionalBillingQuotedTotal));
+        } else if (existing.additional_work_bill !== undefined && existing.additional_work_bill !== null && existing.additional_work_bill !== '') {
+          setAdditionalWorkBill(String(existing.additional_work_bill));
+        } else {
+          setAdditionalWorkBill('');
+        }
+      }
 
-      // Purge legacy 3000000 dummy data or auto-synced balances from netBalanceManual
-      if (
-        existing.has_manual_net_balance &&
-        existing.net_balance_manual !== undefined &&
-        existing.net_balance_manual !== '' &&
-        Number(existing.net_balance_manual) !== 3000000
-      ) {
-        setNetBalanceManual(String(existing.net_balance_manual));
-      } else {
-        setNetBalanceManual('');
+      // Row 4: TOTAL RECEIVED AMOUNT (in Additional) from client payments or existing
+      if (!hasUserEditedAdditionalRef.current) {
+        if (clientPaymentsForSite.additionalTotal > 0) {
+          setReceivedAdditional(String(clientPaymentsForSite.additionalTotal));
+        } else if (existing.received_additional !== undefined && existing.received_additional !== null && existing.received_additional !== '') {
+          setReceivedAdditional(String(existing.received_additional));
+        } else {
+          setReceivedAdditional('');
+        }
+      }
+
+      // Row 5: TOTAL RECEIVED AMOUNT (in Quoted) from client payments or existing
+      if (!hasUserEditedQuotedRef.current) {
+        if (clientPaymentsForSite.quotedTotal > 0) {
+          setReceivedQuoted(String(clientPaymentsForSite.quotedTotal));
+        } else if (existing.received_quoted !== undefined && existing.received_quoted !== null && existing.received_quoted !== '') {
+          setReceivedQuoted(String(existing.received_quoted));
+        } else {
+          setReceivedQuoted('');
+        }
       }
     } else {
       setClientTitle(siteObj?.client_name ? `திரு. ${siteObj.client_name} இல்லம்` : '');
@@ -257,32 +433,43 @@ export default function MonthlyBillingModule() {
       setBillDate('');
       setSettlementDate('');
 
-      // Quoted Total:
-      // If itemized budget has an estimate, populate it; otherwise field is empty
       if (itemizedEstTotal > 0) {
         setMainStructureTotalInput(String(itemizedEstTotal));
       } else {
         setMainStructureTotalInput('');
       }
 
-      setAdditionalWorkBill('');
-      setReceivedAdditional('');
-      setReceivedQuoted('');
-      setNetBalanceManual('');
+      if (!hasUserEditedAdditionalWorkBillRef.current) {
+        setAdditionalWorkBill(additionalBillingQuotedTotal > 0 ? String(additionalBillingQuotedTotal) : '');
+      }
+      if (!hasUserEditedAdditionalRef.current) {
+        setReceivedAdditional(clientPaymentsForSite.additionalTotal > 0 ? String(clientPaymentsForSite.additionalTotal) : '');
+      }
+      if (!hasUserEditedQuotedRef.current) {
+        setReceivedQuoted(clientPaymentsForSite.quotedTotal > 0 ? String(clientPaymentsForSite.quotedTotal) : '');
+      }
     }
-  }, [selectedSite, monthlyBillings, allAvailableSites]);
+  }, [selectedSite, monthlyBillings, allAvailableSites, clientPaymentsForSite, additionalBillingQuotedTotal]);
 
-  // Current selected site details & Itemized Budget estimate total
-  const currentSiteObj = useMemo(() => {
-    if (!selectedSite) return null;
-    return allAvailableSites.find(
-      s => s.site_name.toLowerCase() === selectedSite.toLowerCase()
-    ) || null;
-  }, [allAvailableSites, selectedSite]);
+  // Real-time sync when additional bill quoted amount changes for this site
+  useEffect(() => {
+    if (additionalBillingQuotedTotal > 0 && !hasUserEditedAdditionalWorkBillRef.current) {
+      setAdditionalWorkBill(String(additionalBillingQuotedTotal));
+    }
+  }, [additionalBillingQuotedTotal]);
 
-  const currentItemizedEstimateTotal = useMemo(() => {
-    return getItemizedBudgetEstimateTotal(currentSiteObj);
-  }, [currentSiteObj]);
+  // Real-time sync when new client payments arrive for this site
+  useEffect(() => {
+    if (clientPaymentsForSite.quotedTotal > 0 && !hasUserEditedQuotedRef.current) {
+      setReceivedQuoted(String(clientPaymentsForSite.quotedTotal));
+    }
+  }, [clientPaymentsForSite.quotedTotal]);
+
+  useEffect(() => {
+    if (clientPaymentsForSite.additionalTotal > 0 && !hasUserEditedAdditionalRef.current) {
+      setReceivedAdditional(String(clientPaymentsForSite.additionalTotal));
+    }
+  }, [clientPaymentsForSite.additionalTotal]);
 
   // Calculations
   const mainStructureTotal = useMemo(() => {
@@ -293,41 +480,50 @@ export default function MonthlyBillingModule() {
     return mainStructureTotal + (parseFloat(additionalWorkBill) || 0);
   }, [mainStructureTotal, additionalWorkBill]);
 
-  // Live Site Expenses logged from Admin App (Firestore 'expenses' collection)
-  const siteExpensesTotal = useMemo(() => {
-    if (!selectedSite || !expenses || expenses.length === 0) return 0;
-    const sName = selectedSite.toLowerCase().trim();
-    return expenses
-      .filter(e => {
-        const eSite = String(e.site_name || e.site_id || '').toLowerCase().trim();
-        return eSite === sName || eSite.includes(sName) || sName.includes(eSite);
-      })
-      .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-  }, [selectedSite, expenses]);
+  // AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL:
+  // Totals milestones where admin marked update = 1 + Additional Work Bill
+  const asPerStageTotalAmount = useMemo(() => {
+    const addlBill = parseFloat(additionalWorkBill) || 0;
+    if (completedStagesAmount > 0) {
+      return completedStagesAmount + addlBill;
+    }
+    return grossTotalAmount;
+  }, [completedStagesAmount, additionalWorkBill, grossTotalAmount]);
+
+  // Total Quoted Received = Value inside the input box (which pre-populates with Admin App site expenses)
+  const effectiveReceivedQuoted = useMemo(() => {
+    return parseFloat(receivedQuoted) || 0;
+  }, [receivedQuoted]);
 
   const totalReceivedCombined = useMemo(() => {
     const additional = parseFloat(receivedAdditional) || 0;
-    const quoted = parseFloat(receivedQuoted) || 0;
-    // Reflect expenses added from Admin App directly into total received amount
-    return additional + quoted + siteExpensesTotal;
-  }, [receivedAdditional, receivedQuoted, siteExpensesTotal]);
+    return additional + effectiveReceivedQuoted;
+  }, [receivedAdditional, effectiveReceivedQuoted]);
 
   const balanceAmount = useMemo(() => {
+    return asPerStageTotalAmount - totalReceivedCombined;
+  }, [asPerStageTotalAmount, totalReceivedCombined]);
+
+  // Row 8: TOTAL BALANCE AMOUNT
+  // TOTAL QUOTED AMOUNT + ADDITIONAL WORK - (TOTAL RECEIVED AMOUNT (in Additional) + TOTAL RECEIVED AMOUNT (in Quoted))
+  const totalBalanceAmount = useMemo(() => {
     return grossTotalAmount - totalReceivedCombined;
   }, [grossTotalAmount, totalReceivedCombined]);
 
   // Reset to default
   const handleResetToTemplate = () => {
     if (window.confirm("Reset billing figures for this site?")) {
+      hasUserEditedQuotedRef.current = false;
+      hasUserEditedAdditionalRef.current = false;
+      hasUserEditedAdditionalWorkBillRef.current = false;
       const siteObj = allAvailableSites.find(
         s => s.site_name.toLowerCase() === selectedSite.toLowerCase()
       );
       const itemizedEstTotal = getItemizedBudgetEstimateTotal(siteObj);
       setMainStructureTotalInput(itemizedEstTotal > 0 ? String(itemizedEstTotal) : '');
-      setAdditionalWorkBill('');
-      setReceivedAdditional('');
-      setReceivedQuoted('');
-      setNetBalanceManual('');
+      setAdditionalWorkBill(additionalBillingQuotedTotal > 0 ? String(additionalBillingQuotedTotal) : '');
+      setReceivedAdditional(clientPaymentsForSite.additionalTotal > 0 ? String(clientPaymentsForSite.additionalTotal) : '');
+      setReceivedQuoted(clientPaymentsForSite.quotedTotal > 0 ? String(clientPaymentsForSite.quotedTotal) : '');
     }
   };
 
@@ -345,9 +541,6 @@ export default function MonthlyBillingModule() {
   const handleSaveBilling = async () => {
     setIsSaving(true);
     try {
-      const hasManualNet = String(netBalanceManual).trim() !== '';
-      const netVal = hasManualNet ? (parseFloat(netBalanceManual) || 0) : balanceAmount;
-
       const payload = {
         id: selectedSite,
         bill_id: `MONTHLY-${selectedSite.replace(/\s+/g, '-').toUpperCase()}`,
@@ -365,14 +558,16 @@ export default function MonthlyBillingModule() {
         main_structure_total: mainStructureTotal,
         additional_work_bill: parseFloat(additionalWorkBill) || 0,
         gross_total: grossTotalAmount,
+        as_per_stage_amount: asPerStageTotalAmount,
+        completed_stages_amount: completedStagesAmount,
         received_additional: parseFloat(receivedAdditional) || 0,
         received_quoted: parseFloat(receivedQuoted) || 0,
-        site_expenses_total: siteExpensesTotal,
         total_received: totalReceivedCombined,
         balance_amount: balanceAmount,
-        net_balance: netVal,
-        net_balance_manual: hasManualNet ? netBalanceManual.trim() : '',
-        has_manual_net_balance: hasManualNet
+        total_balance: totalBalanceAmount,
+        net_balance: totalBalanceAmount,
+        net_balance_manual: '',
+        has_manual_net_balance: false
       };
 
       await saveMonthlyBilling(payload);
@@ -413,19 +608,24 @@ export default function MonthlyBillingModule() {
     // Gross Total
     exportRows.push({
       SNo: '3',
-      Description: `மொத்த தொகை ${billDate ? `(${billDate})` : ''}`,
+      Description: `TOTAL QUOTED AMOUNT + ADDITIONAL WORK ${billDate ? `(${billDate})` : ''}`,
       Amount: grossTotalAmount
     });
 
     // Settlement
     exportRows.push({ SNo: '4', Description: 'TOTAL RECEIVED AMOUNT (in Additional)', Amount: receivedAdditional !== '' ? receivedAdditional : '-' });
-    exportRows.push({ SNo: '5', Description: 'TOTAL RECEIVED AMOUNT (in Quoted)', Amount: receivedQuoted !== '' ? receivedQuoted : 0 });
-    if (siteExpensesTotal > 0) {
-      exportRows.push({ SNo: '•', Description: 'EXPENSES ADDED (Admin App / Site Live)', Amount: siteExpensesTotal });
-    }
-    exportRows.push({ SNo: '6', Description: `AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL (To Pay from client) ${settlementDate ? `AS ON ${settlementDate}` : ''}`, Amount: grossTotalAmount });
-    exportRows.push({ SNo: '7', Description: `BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`, Amount: balanceAmount });
-    exportRows.push({ SNo: '8', Description: `NET BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`, Amount: netBalanceManual !== '' ? netBalanceManual : balanceAmount });
+    exportRows.push({
+      SNo: '5',
+      Description: 'TOTAL RECEIVED AMOUNT (in Quoted)',
+      Amount: parseFloat(receivedQuoted) || 0
+    });
+    exportRows.push({
+      SNo: '6',
+      Description: `AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL (To Pay from client) ${settlementDate ? `AS ON ${settlementDate}` : ''}`,
+      Amount: asPerStageTotalAmount
+    });
+    exportRows.push({ SNo: '7', Description: `AS PER STAGE BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`, Amount: balanceAmount });
+    exportRows.push({ SNo: '8', Description: `TOTAL BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`, Amount: totalBalanceAmount });
 
     const filename = `Yeloline_Monthly_Billing_${selectedSite.replace(/\s+/g, '_')}`;
     exportToXLS(exportRows, filename, 'Monthly Billing Statement');
@@ -449,7 +649,7 @@ export default function MonthlyBillingModule() {
 
     exportRows.push({
       sno: '3',
-      description: `மொத்த தொகை ${billDate ? `(${billDate})` : ''}`,
+      description: `TOTAL QUOTED AMOUNT + ADDITIONAL WORK ${billDate ? `(${billDate})` : ''}`,
       amount: `₹ ${formatCurrency(grossTotalAmount)}`
     });
 
@@ -462,33 +662,25 @@ export default function MonthlyBillingModule() {
     exportRows.push({
       sno: '5',
       description: 'TOTAL RECEIVED AMOUNT (in Quoted)',
-      amount: `₹ ${formatCurrency(receivedQuoted || 0)}`
+      amount: `₹ ${formatCurrency(parseFloat(receivedQuoted) || 0)}`
     });
-
-    if (siteExpensesTotal > 0) {
-      exportRows.push({
-        sno: '•',
-        description: 'EXPENSES ADDED (Admin App / Site Live)',
-        amount: `₹ ${formatCurrency(siteExpensesTotal)}`
-      });
-    }
 
     exportRows.push({
       sno: '6',
       description: `AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL (To Pay from client) ${settlementDate ? `AS ON ${settlementDate}` : ''}`,
-      amount: `₹ ${formatCurrency(grossTotalAmount)}`
+      amount: `₹ ${formatCurrency(asPerStageTotalAmount)}`
     });
 
     exportRows.push({
       sno: '7',
-      description: `BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`,
+      description: `AS PER STAGE BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`,
       amount: `₹ ${formatCurrency(balanceAmount)}`
     });
 
     exportRows.push({
       sno: '8',
-      description: `NET BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`,
-      amount: `₹ ${formatCurrency(netBalanceManual !== '' ? netBalanceManual : balanceAmount)}`
+      description: `TOTAL BALANCE AMOUNT ${settlementDate ? `AS ON ${settlementDate}` : ''}`,
+      amount: `₹ ${formatCurrency(totalBalanceAmount)}`
     });
 
     const exportCols = [
@@ -612,6 +804,16 @@ export default function MonthlyBillingModule() {
                 <span>○ Ready for Setup</span>
               )}
             </span>
+            {completedStagesAmount > 0 && (
+              <span className="site-badge" style={{ backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', color: '#1D4ED8' }}>
+                <span>Completed Stages (1): <strong>₹ {formatCurrency(completedStagesAmount)}</strong></span>
+              </span>
+            )}
+            {clientPaymentsForSite.count > 0 && (
+              <span className="site-badge" style={{ backgroundColor: '#ECFDF5', borderColor: '#A7F3D0', color: '#065F46' }}>
+                <span>Client Received: <strong>₹ {formatCurrency(clientPaymentsForSite.quotedTotal + clientPaymentsForSite.additionalTotal)}</strong> ({clientPaymentsForSite.count})</span>
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -630,25 +832,21 @@ export default function MonthlyBillingModule() {
           title="TOTAL RECEIVED"
           value={`₹ ${formatCurrency(totalReceivedCombined)}`}
           icon={DollarSign}
-          subtext={
-            siteExpensesTotal > 0
-              ? `Quoted: ₹${((parseFloat(receivedQuoted) || 0)/100000).toFixed(2)}L + Expenses Added: ₹${(siteExpensesTotal/100000).toFixed(2)}L`
-              : `₹${((parseFloat(receivedQuoted) || 0)/100000).toFixed(2)}L Quoted + ₹${((parseFloat(receivedAdditional) || 0)/100000).toFixed(2)}L Addl.`
-          }
+          subtext={`₹${(effectiveReceivedQuoted/100000).toFixed(2)}L Quoted + ₹${((parseFloat(receivedAdditional) || 0)/100000).toFixed(2)}L Addl.`}
         />
 
         <MetricCard
-          title="BALANCE DUE"
+          title="STAGE BALANCE DUE"
           value={`₹ ${formatCurrency(balanceAmount)}`}
           icon={TrendingUp}
           subtext={`As on ${settlementDate || 'statement date'} pending`}
         />
 
         <MetricCard
-          title="NET SETTLEMENT"
-          value={`₹ ${formatCurrency(netBalanceManual !== '' ? netBalanceManual : balanceAmount)}`}
+          title="TOTAL BALANCE"
+          value={`₹ ${formatCurrency(totalBalanceAmount)}`}
           icon={CalendarDays}
-          subtext="Final settlement balance amount"
+          subtext="Total Quoted + Addl minus Total Received"
         />
       </div>
 
@@ -729,28 +927,7 @@ export default function MonthlyBillingModule() {
                   <span className="sno-badge">1</span>
                 </td>
                 <td className="total-title-cell">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                    <strong>மொத்தம் (Main Structure / Quoted Total)</strong>
-                    {currentItemizedEstimateTotal > 0 && (
-                      <span
-                        style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          color: '#15803d',
-                          backgroundColor: '#dcfce7',
-                          border: '1px solid #bbf7d0',
-                          padding: '2px 8px',
-                          borderRadius: '12px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                        title="Linked to Itemized Budget Estimated Total"
-                      >
-                        Itemized Budget Est: ₹{formatCurrency(currentItemizedEstimateTotal)}
-                      </span>
-                    )}
-                  </div>
+                  <strong>மொத்தம் (Main Structure / Quoted Total)</strong>
                 </td>
                 <td className="total-input-cell">
                   <div className="currency-input-wrap">
@@ -783,7 +960,10 @@ export default function MonthlyBillingModule() {
                       step="any"
                       className="cell-input num-input bold-input"
                       value={additionalWorkBill}
-                      onChange={(e) => setAdditionalWorkBill(e.target.value)}
+                      onChange={(e) => {
+                        hasUserEditedAdditionalWorkBillRef.current = true;
+                        setAdditionalWorkBill(e.target.value);
+                      }}
                       placeholder="0.00"
                     />
                   </div>
@@ -796,7 +976,7 @@ export default function MonthlyBillingModule() {
                   <span className="sno-badge">3</span>
                 </td>
                 <td className="total-title-cell">
-                  <strong>மொத்த தொகை {billDate ? `(${billDate})` : ''}</strong>
+                  <strong>TOTAL QUOTED AMOUNT + ADDITIONAL WORK {billDate ? `(${billDate})` : ''}</strong>
                 </td>
                 <td className="total-val-cell highlight-yellow">
                   <span className="currency-symbol">₹</span>
@@ -810,7 +990,7 @@ export default function MonthlyBillingModule() {
                   <span className="sno-badge">4</span>
                 </td>
                 <td className="recon-label-cell">
-                  TOTAL RECEIVED AMOUNT (in Additional)
+                  <div>TOTAL RECEIVED AMOUNT (in Additional)</div>
                 </td>
                 <td className="recon-input-cell">
                   <div className="currency-input-wrap">
@@ -820,7 +1000,10 @@ export default function MonthlyBillingModule() {
                       step="any"
                       className="cell-input num-input bold-input"
                       value={receivedAdditional}
-                      onChange={(e) => setReceivedAdditional(e.target.value)}
+                      onChange={(e) => {
+                        hasUserEditedAdditionalRef.current = true;
+                        setReceivedAdditional(e.target.value);
+                      }}
                       placeholder="0.00"
                     />
                   </div>
@@ -833,7 +1016,7 @@ export default function MonthlyBillingModule() {
                   <span className="sno-badge">5</span>
                 </td>
                 <td className="recon-label-cell">
-                  TOTAL RECEIVED AMOUNT (in Quoted)
+                  <strong>TOTAL RECEIVED AMOUNT (in Quoted)</strong>
                 </td>
                 <td className="recon-input-cell">
                   <div className="currency-input-wrap">
@@ -843,33 +1026,16 @@ export default function MonthlyBillingModule() {
                       step="any"
                       className="cell-input num-input bold-input"
                       value={receivedQuoted}
-                      onChange={(e) => setReceivedQuoted(e.target.value)}
+                      onChange={(e) => {
+                        hasUserEditedQuotedRef.current = true;
+                        setReceivedQuoted(e.target.value);
+                      }}
                       placeholder="0.00"
                     />
                   </div>
                 </td>
               </tr>
 
-              {/* Live Expenses from Admin App / Site */}
-              {siteExpensesTotal > 0 && (
-                <tr className="reconciliation-row" style={{ backgroundColor: '#fffbeb' }}>
-                  <td className="cell-center">
-                    <span className="sno-badge" style={{ background: '#fef3c7', color: '#b45309' }}>•</span>
-                  </td>
-                  <td className="recon-label-cell">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontWeight: 700, color: '#92400e' }}>EXPENSES ADDED (Admin App / Site Live)</span>
-                      <span style={{ fontSize: '11px', background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                        Live Firestore Sync
-                      </span>
-                    </div>
-                  </td>
-                  <td className="recon-val-cell" style={{ color: '#b45309', fontWeight: 800 }}>
-                    <span className="currency-symbol">₹</span>
-                    <strong>{formatCurrency(siteExpensesTotal)}</strong>
-                  </td>
-                </tr>
-              )}
 
               {/* 6. AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL */}
               <tr className="reconciliation-row">
@@ -882,7 +1048,7 @@ export default function MonthlyBillingModule() {
                 </td>
                 <td className="recon-val-cell">
                   <span className="currency-symbol">₹</span>
-                  <strong>{formatCurrency(grossTotalAmount)}</strong>
+                  <strong>{formatCurrency(asPerStageTotalAmount)}</strong>
                 </td>
               </tr>
 
@@ -892,7 +1058,7 @@ export default function MonthlyBillingModule() {
                   <span className="sno-badge">7</span>
                 </td>
                 <td className="balance-label-cell">
-                  <strong>BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}</strong>
+                  <strong>AS PER STAGE BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}</strong>
                 </td>
                 <td className="balance-val-cell">
                   <span className="currency-symbol">₹</span>
@@ -900,47 +1066,17 @@ export default function MonthlyBillingModule() {
                 </td>
               </tr>
 
-              {/* 8. Net Balance Amount Row (Light Green background - Matching Document) */}
+              {/* 8. Total Balance Amount Row (Light Green background - Matching Document) */}
               <tr className="net-balance-row">
                 <td className="cell-center">
                   <span className="sno-badge">8</span>
                 </td>
                 <td className="net-balance-label-cell">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                    <strong>NET BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}</strong>
-                    {netBalanceManual !== '' && (
-                      <button
-                        type="button"
-                        onClick={() => setNetBalanceManual('')}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#dc2626',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          fontWeight: 600,
-                          textDecoration: 'underline',
-                          padding: 0
-                        }}
-                        title="Clear manual override"
-                      >
-                        Clear field
-                      </button>
-                    )}
-                  </div>
+                  <strong>TOTAL BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}</strong>
                 </td>
-                <td className="net-input-cell">
-                  <div className="currency-input-wrap">
-                    <span className="currency-symbol">₹</span>
-                    <input
-                      type="number"
-                      step="any"
-                      className="cell-input num-input net-input"
-                      value={netBalanceManual}
-                      onChange={(e) => setNetBalanceManual(e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
+                <td className="balance-val-cell">
+                  <span className="currency-symbol">₹</span>
+                  <strong>{formatCurrency(totalBalanceAmount)}</strong>
                 </td>
               </tr>
             </tbody>
@@ -1014,7 +1150,7 @@ export default function MonthlyBillingModule() {
               <tr className="print-yellow-row">
                 <td style={{ textAlign: 'center', fontWeight: 800 }}>3</td>
                 <td style={{ textAlign: 'left', paddingLeft: '14px', fontWeight: 800 }}>
-                  மொத்த தொகை {billDate ? `(${billDate})` : ''}
+                  TOTAL QUOTED AMOUNT + ADDITIONAL WORK {billDate ? `(${billDate})` : ''}
                 </td>
                 <td style={{ textAlign: 'right', paddingRight: '14px', fontWeight: 800, fontFamily: 'monospace' }}>
                   ₹ {Number(grossTotalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -1039,22 +1175,10 @@ export default function MonthlyBillingModule() {
                   TOTAL RECEIVED AMOUNT (in Quoted)
                 </td>
                 <td style={{ textAlign: 'right', paddingRight: '14px', fontFamily: 'monospace' }}>
-                  ₹ {Number(receivedQuoted || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  ₹ {Number(parseFloat(receivedQuoted) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
 
-              {/* Site Expenses Added */}
-              {siteExpensesTotal > 0 && (
-                <tr style={{ backgroundColor: '#fffbeb' }}>
-                  <td style={{ textAlign: 'center', fontWeight: 700, color: '#92400e' }}>•</td>
-                  <td style={{ textAlign: 'left', paddingLeft: '14px', fontSize: '0.85rem', fontWeight: 700, color: '#92400e' }}>
-                    EXPENSES ADDED (Admin App / Site Live)
-                  </td>
-                  <td style={{ textAlign: 'right', paddingRight: '14px', fontWeight: 800, fontFamily: 'monospace', color: '#92400e' }}>
-                    ₹ {Number(siteExpensesTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              )}
 
               {/* To Pay from client */}
               <tr>
@@ -1063,7 +1187,7 @@ export default function MonthlyBillingModule() {
                   AS PER STAGE AMOUNT INCLD. ADDITIONAL WORK BILL (To Pay from client) {settlementDate ? `AS ON ${settlementDate}` : ''}
                 </td>
                 <td style={{ textAlign: 'right', paddingRight: '14px', fontWeight: 800, fontFamily: 'monospace' }}>
-                  ₹ {Number(grossTotalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  ₹ {Number(asPerStageTotalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
 
@@ -1071,21 +1195,21 @@ export default function MonthlyBillingModule() {
               <tr className="print-blue-row">
                 <td style={{ textAlign: 'center', fontWeight: 800 }}>7</td>
                 <td style={{ textAlign: 'left', paddingLeft: '14px', fontWeight: 800 }}>
-                  BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}
+                  AS PER STAGE BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}
                 </td>
                 <td style={{ textAlign: 'right', paddingRight: '14px', fontWeight: 800, fontFamily: 'monospace' }}>
                   ₹ {Number(balanceAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
 
-              {/* Net Balance Amount (Light Green row) */}
+              {/* Total Balance Amount (Light Green row) */}
               <tr className="print-lightgreen-row">
                 <td style={{ textAlign: 'center', fontWeight: 800 }}>8</td>
                 <td style={{ textAlign: 'left', paddingLeft: '14px', fontWeight: 800 }}>
-                  NET BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}
+                  TOTAL BALANCE AMOUNT {settlementDate ? `AS ON ${settlementDate}` : ''}
                 </td>
                 <td style={{ textAlign: 'right', paddingRight: '14px', fontWeight: 800, fontFamily: 'monospace' }}>
-                  ₹ {Number(netBalanceManual !== '' ? netBalanceManual : balanceAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  ₹ {Number(totalBalanceAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
             </tbody>
